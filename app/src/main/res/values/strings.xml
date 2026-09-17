@@ -181,6 +181,7 @@
     <string name="ai_provider">Provider</string>
     <string name="ai_api_key">API key</string>
     <string name="ai_model">Model</string>
+    <string name="ai_prompt_label">Prompt</string>
     <string name="ai_openai">OpenAI</string>
     <string name="ai_gemini">Gemini</string>
     <string name="ai_anthropic">Anthropic</string>

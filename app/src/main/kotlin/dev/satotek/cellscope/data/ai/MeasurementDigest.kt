@@ -24,7 +24,7 @@ object MeasurementDigest {
         range: LongRange,
         locale: Locale,
     ): String {
-        val prompt = context.getString(R.string.ai_prompt)
+        val prompt = AiPrefs.load(context).resolvedPrompt(context)
         val body = buildBody(context, samples, events, range, locale)
         val budget = maxChars - prompt.length - 2
         val trimmed = if (body.length <= budget) body else {

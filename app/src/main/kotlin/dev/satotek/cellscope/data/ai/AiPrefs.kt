@@ -4,10 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import dev.satotek.cellscope.R
 
 enum class AiProvider(val id: String, val defaultModel: String) {
-    OPENAI("openai", "gpt-5-mini"),
-    GEMINI("gemini", "gemini-2.5-flash"),
+    OPENAI("openai", "gpt-5.6-luna"),
+    GEMINI("gemini", "gemini-3.8-flash"),
     ANTHROPIC("anthropic", "claude-sonnet-5");
 
     companion object {
@@ -19,9 +20,11 @@ data class AiConfig(
     val provider: AiProvider = AiProvider.OPENAI,
     val apiKey: String = "",
     val model: String = "",
+    val prompt: String = "",
 ) {
     val hasKey: Boolean get() = apiKey.isNotBlank()
     val resolvedModel: String get() = model.ifBlank { provider.defaultModel }
+    fun resolvedPrompt(context: Context): String = prompt.ifBlank { context.getString(R.string.ai_prompt) }
 }
 
 object AiPrefs {
@@ -29,6 +32,7 @@ object AiPrefs {
     private const val K_PROVIDER = "provider"
     private const val K_KEY = "api_key"
     private const val K_MODEL = "model"
+    private const val K_PROMPT = "prompt"
 
     fun load(context: Context): AiConfig {
         val p = prefs(context) ?: return AiConfig()
@@ -36,6 +40,7 @@ object AiPrefs {
             provider = AiProvider.of(p.getString(K_PROVIDER, null)),
             apiKey = p.getString(K_KEY, "") ?: "",
             model = p.getString(K_MODEL, "") ?: "",
+            prompt = p.getString(K_PROMPT, "") ?: "",
         )
     }
 
@@ -45,6 +50,7 @@ object AiPrefs {
             .putString(K_PROVIDER, config.provider.id)
             .putString(K_KEY, config.apiKey)
             .putString(K_MODEL, config.model)
+            .putString(K_PROMPT, config.prompt)
             .apply()
     }
 

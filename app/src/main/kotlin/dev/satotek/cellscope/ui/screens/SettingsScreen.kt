@@ -407,6 +407,22 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true, se
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
+                HorizontalDivider(color = Palette.outline)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.ai_prompt_label)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            value = ai.prompt,
+                            onValueChange = { v -> val next = ai.copy(prompt = v); ai = next; AiPrefs.save(context, next) },
+                            minLines = 4,
+                            maxLines = 8,
+                            placeholder = { Text(stringResource(R.string.ai_prompt), style = MaterialTheme.typography.bodySmall, color = Palette.textDim) },
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
             }
         }
 
