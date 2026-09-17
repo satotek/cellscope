@@ -25,6 +25,9 @@ import dev.satotek.cellscope.data.root.RootProbe
 import dev.satotek.cellscope.data.root.RootShell
 import dev.satotek.cellscope.data.snapshot.OsmTiles
 import dev.satotek.cellscope.data.snapshot.SnapshotWriter
+import dev.satotek.cellscope.data.speed.Ndt7Client
+import dev.satotek.cellscope.data.speed.SpeedProgress
+import dev.satotek.cellscope.data.speed.SpeedResult
 import dev.satotek.cellscope.data.telephony.CellMapper
 import dev.satotek.cellscope.data.telephony.RatLock
 import dev.satotek.cellscope.data.telephony.TelephonyRepository
@@ -39,6 +42,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
 import java.io.File
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -131,6 +135,72 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setPingHost(h: String) { _pingHost.value = h.trim(); prefs.edit().putString("ping_host", h.trim()).apply() }
     fun setPingEnabled(on: Boolean) { _pingEnabled.value = on; prefs.edit().putBoolean("ping_on", on).apply(); if (on) startPing() else { pingJob?.cancel(); lastRtt = null } }
+
+    private val _speedServer = MutableStateFlow(prefs.getString("speed_server", "") ?: "")
+    val speedServer: StateFlow<String> = _speedServer
+    fun setSpeedServer(s: String) { _speedServer.value = s.trim(); prefs.edit().putString("speed_server", s.trim()).apply() }
+
+    private val _speedState = MutableStateFlow<SpeedProgress?>(null)
+    val speedState: StateFlow<SpeedProgress?> = _speedState
+    private val _speedResults = MutableStateFlow(loadSpeedResults())
+    val speedResults: StateFlow<List<SpeedResult>> = _speedResults
+    private var speedJob: Job? = null
+
+    fun startSpeedTest() {
+        if (speedJob?.isActive == true) return
+        val serving = _state.value.serving
+        val server = _speedServer.value.ifBlank { null }
+        speedJob = viewModelScope.launch {
+            android.util.Log.i("Speed", "start server=${server ?: "mlab"}")
+            Ndt7Client.run(getApplication(), server, serving).collect { p ->
+                _speedState.value = p
+                p.result?.let { r ->
+                    val next = (listOf(r) + _speedResults.value).take(50)
+                    _speedResults.value = next
+                    saveSpeedResults(next)
+                }
+            }
+        }
+    }
+    fun cancelSpeedTest() {
+        speedJob?.cancel()
+        speedJob = null
+        _speedState.value = null
+    }
+    fun deleteSpeedResult(r: SpeedResult) {
+        val next = _speedResults.value.filter { it.t != r.t }
+        _speedResults.value = next
+        saveSpeedResults(next)
+    }
+    fun writeSpeedCsv(dir: File): File {
+        val f = File(dir, "speed.csv")
+        val rows = _speedResults.value
+        val sb = StringBuilder("time,dl_mbps,ul_mbps,min_rtt_ms,server,rat,band,pci,rsrp,via_cellular\n")
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        rows.asReversed().forEach { r ->
+            sb.append(fmt.format(java.util.Date(r.t))).append(',')
+            sb.append(r.dlMbps).append(',').append(r.ulMbps).append(',')
+            sb.append(r.minRttMs ?: "").append(',')
+            sb.append('"').append(r.server.replace("\"", "'")).append('"').append(',')
+            sb.append(r.rat).append(',').append(r.band).append(',')
+            sb.append(r.pci ?: "").append(',').append(r.rsrp ?: "").append(',')
+            sb.append(r.viaCellular).append('\n')
+        }
+        f.writeText(sb.toString())
+        return f
+    }
+    private fun loadSpeedResults(): List<SpeedResult> {
+        val raw = prefs.getString("speed_results", null) ?: return emptyList()
+        return runCatching {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).map { SpeedResult.fromJson(arr.getJSONObject(it)) }
+        }.getOrDefault(emptyList())
+    }
+    private fun saveSpeedResults(list: List<SpeedResult>) {
+        val arr = JSONArray()
+        list.forEach { arr.put(it.toJson()) }
+        prefs.edit().putString("speed_results", arr.toString()).apply()
+    }
 
     /** Home gesture enters PiP. Default on; the header icon still works when this is off. */
     /** "system" | "light" | "dark" — read by every CellScopeTheme host (activity, overlay). */
@@ -377,8 +447,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     @SuppressLint("MissingPermission")
     /** Stop everything that would otherwise keep running after the activity is gone (process-wide VM). */
     fun shutdown() {
-        pollJob?.cancel(); rootJob?.cancel(); pingJob?.cancel()
-        pollJob = null; rootJob = null; pingJob = null
+        pollJob?.cancel(); rootJob?.cancel(); pingJob?.cancel(); speedJob?.cancel()
+        pollJob = null; rootJob = null; pingJob = null; speedJob = null
         if (recorder.active) { recorder.stop(); _recordingFlow.value = false }
         runCatching { lm.removeUpdates(locListener) }
         repo.stop()

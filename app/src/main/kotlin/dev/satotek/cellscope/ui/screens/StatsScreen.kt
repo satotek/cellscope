@@ -67,7 +67,7 @@ private val windows = listOf(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun StatsScreen(s: Snapshot, logFile: File? = null) {
+fun StatsScreen(s: Snapshot, logFile: File? = null, speedResults: List<dev.satotek.cellscope.data.speed.SpeedResult> = emptyList()) {
     var win by rememberSaveable { mutableIntStateOf(1) }
     val windowMs = windows[win].second
     val lastT = s.history.lastOrNull()?.t ?: 0L
@@ -85,7 +85,7 @@ fun StatsScreen(s: Snapshot, logFile: File? = null) {
                             style = MaterialTheme.typography.bodySmall, color = Palette.textDim,
                         )
                     }
-                    AiDigestButton(s.history, s.events, range, logFile)
+                    AiDigestButton(s.history, s.events, range, logFile, speedResults)
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {

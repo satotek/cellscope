@@ -90,6 +90,7 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true, se
     LaunchedEffect(s.privilege, s.root.available) { vm.refreshRatLock(); vm.refreshConnectivity() }
     val gnbChoices = listOf(22, 24, 26, 28, 32)
     val pingOn by vm.pingEnabled.collectAsStateWithLifecycle()
+    val speedServer by vm.speedServer.collectAsStateWithLifecycle()
     val pipAuto by vm.pipAuto.collectAsStateWithLifecycle()
     val overlayOn by vm.overlayEnabled.collectAsStateWithLifecycle()
     val recording by vm.recordingFlow.collectAsStateWithLifecycle()
@@ -134,6 +135,24 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true, se
                             InfoButton(stringResource(R.string.ping), stringResource(R.string.ping_p1), stringResource(R.string.ping_p2))
                             Switch(checked = pingOn, onCheckedChange = { vm.setPingEnabled(it) })
                         }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+                HorizontalDivider(color = Palette.outline)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.speed_server)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            value = speedServer,
+                            onValueChange = { vm.setSpeedServer(it) },
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.speed_server_hint), fontFamily = Mono, fontSize = 13.sp, color = Palette.textDim) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
+                    },
+                    trailingContent = {
+                        InfoButton(stringResource(R.string.speed_server), stringResource(R.string.speed_server_p1), stringResource(R.string.speed_server_p2))
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )

@@ -63,7 +63,7 @@ import kotlin.math.hypot
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ReplayScreen(file: File) {
+fun ReplayScreen(file: File, speedResults: List<dev.satotek.cellscope.data.speed.SpeedResult> = emptyList()) {
     var data by remember(file) { mutableStateOf<ReplayData?>(null) }
     var error by remember(file) { mutableStateOf<String?>(null) }
     val failed = stringResource(R.string.replay_failed)
@@ -76,19 +76,19 @@ fun ReplayScreen(file: File) {
     when {
         error != null -> Text(error!!, fontFamily = Mono, color = Palette.poor, modifier = Modifier.padding(16.dp))
         data == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
-        else -> ReplayBody(data!!, file.name, file)
+        else -> ReplayBody(data!!, file.name, file, speedResults)
     }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ReplayScreen(data: ReplayData, fileName: String) {
-    ReplayBody(data, fileName, null)
+    ReplayBody(data, fileName, null, emptyList())
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ReplayBody(data: ReplayData, fileName: String, logFile: File?) {
+private fun ReplayBody(data: ReplayData, fileName: String, logFile: File?, speedResults: List<dev.satotek.cellscope.data.speed.SpeedResult>) {
     val h = data.samples
     val events = data.events
     val dataStart = h.firstOrNull()?.t ?: 0L
@@ -143,7 +143,7 @@ private fun ReplayBody(data: ReplayData, fileName: String, logFile: File?) {
                         fontFamily = Mono, fontSize = 13.sp, color = if (zoomed) Palette.accent else Palette.text,
                     )
                 }
-                AiDigestButton(h, events, range, logFile)
+                AiDigestButton(h, events, range, logFile, speedResults)
                 if (zoomed) {
                     TextButton(onClick = { clampView(dataStart, dataEnd) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.replay_all), fontFamily = Mono)

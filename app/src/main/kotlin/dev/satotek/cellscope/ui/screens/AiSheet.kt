@@ -53,13 +53,13 @@ import java.io.File
 import java.util.Locale
 
 @Composable
-fun AiDigestButton(samples: List<SignalSample>, events: List<CellEvent>, range: LongRange, logFile: File? = null) {
+fun AiDigestButton(samples: List<SignalSample>, events: List<CellEvent>, range: LongRange, logFile: File? = null, speedResults: List<dev.satotek.cellscope.data.speed.SpeedResult> = emptyList()) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
         Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.ai_ask), tint = Palette.text)
     }
     if (open) {
-        AiDigestSheet(samples, events, range, logFile, onDismiss = { open = false })
+        AiDigestSheet(samples, events, range, logFile, speedResults, onDismiss = { open = false })
     }
 }
 
@@ -77,12 +77,13 @@ private fun AiDigestSheet(
     events: List<CellEvent>,
     range: LongRange,
     logFile: File?,
+    speedResults: List<dev.satotek.cellscope.data.speed.SpeedResult>,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     val locale = remember { Locale.getDefault() }
-    val digest = remember(samples, events, range, locale) {
-        MeasurementDigest.build(context, samples, events, range, locale)
+    val digest = remember(samples, events, range, locale, speedResults) {
+        MeasurementDigest.build(context, samples, events, range, locale, speedResults)
     }
     val hasKey = remember { AiPrefs.hasKey(context) }
     var phase by remember { mutableStateOf<AiPhase>(AiPhase.Preview) }

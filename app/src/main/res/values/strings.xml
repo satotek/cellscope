@@ -34,6 +34,19 @@
     <string name="gnb_bits">gNB ID length</string>
     <string name="gnb_bits_p1">The NR NCI (36 bit) is gNB ID + cell ID; operators choose a gNB ID length between 22 and 32 bits.</string>
     <string name="gnb_bits_p2">24 is common in Japan and Europe, 22 in the US. A wrong value only shifts the gNB / cell split; the NCI itself is unaffected.</string>
+    <string name="speed_server">Speed-test server</string>
+    <string name="speed_server_hint">wss://…/ndt/v7</string>
+    <string name="speed_server_p1">Leave empty to use the nearest M-Lab NDT7 server. A custom URL should be an ndt7 base (…/ndt/v7).</string>
+    <string name="speed_server_p2">M-Lab publishes measurement results as open data (server, time, throughput). Nothing else from this app is sent.</string>
+    <string name="speed_test">Speed test</string>
+    <string name="speed_confirm_title">Speed test</string>
+    <string name="speed_confirm_body">Transfers about 200–400 MB over the cellular link.</string>
+    <string name="speed_locate">Locate</string>
+    <string name="speed_download">Down</string>
+    <string name="speed_upload">Up</string>
+    <string name="speed_share_csv">Share CSV</string>
+    <string name="more_speed">Speed tests</string>
+    <string name="digest_speed">Measured: ▼ %1$s / ▲ %2$s Mbps · minRTT %3$s ms (%4$s, %5$s PCI %6$s)</string>
 
     <!-- settings: display -->
     <string name="group_display">Display</string>

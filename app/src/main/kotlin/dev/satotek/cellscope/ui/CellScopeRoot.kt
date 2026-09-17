@@ -79,6 +79,8 @@ fun CellScopeRoot(
     val recording by vm.recordingFlow.collectAsStateWithLifecycle()
     val snapshotState by vm.snapshotState.collectAsStateWithLifecycle()
     val snapshotRender by vm.snapshotRender.collectAsStateWithLifecycle()
+    val speedProgress by vm.speedState.collectAsStateWithLifecycle()
+    val speedResults by vm.speedResults.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -147,10 +149,14 @@ fun CellScopeRoot(
                         onTakeSnapshot = { vm.takeSnapshot() },
                         recording = recording,
                         onToggleRecording = { vm.toggleRecording() },
+                        speedProgress = speedProgress,
+                        lastSpeed = speedResults.firstOrNull(),
+                        onStartSpeedTest = { vm.startSpeedTest() },
+                        onCancelSpeedTest = { vm.cancelSpeedTest() },
                     )
                     Tab.CELLS -> CellsScreen(state)
                     Tab.SIGNAL -> SignalScreen(state)
-                    Tab.STATS -> StatsScreen(state, logFile = if (recording) vm.logFile else null)
+                    Tab.STATS -> StatsScreen(state, logFile = if (recording) vm.logFile else null, speedResults = speedResults)
                     Tab.MORE -> MoreScreen(vm, state, onExit = onExit)
                 }
             }

@@ -7,6 +7,7 @@ import android.telephony.TelephonyManager
 import dev.satotek.cellscope.R
 import dev.satotek.cellscope.data.model.CellEvent
 import dev.satotek.cellscope.data.model.SignalSample
+import dev.satotek.cellscope.data.speed.SpeedResult
 import dev.satotek.cellscope.data.stats.Percentiles
 import dev.satotek.cellscope.data.stats.QualityShare
 import dev.satotek.cellscope.data.stats.StatsAggregator
@@ -23,9 +24,10 @@ object MeasurementDigest {
         events: List<CellEvent>,
         range: LongRange,
         locale: Locale,
+        speedResults: List<SpeedResult> = emptyList(),
     ): String {
         val prompt = AiPrefs.load(context).resolvedPrompt(context)
-        val body = buildBody(context, samples, events, range, locale)
+        val body = buildBody(context, samples, events, range, locale, speedResults)
         val budget = maxChars - prompt.length - 2
         val trimmed = if (body.length <= budget) body else {
             val cut = body.lastIndexOf('\n', budget.coerceAtMost(body.lastIndex).coerceAtLeast(0))
@@ -40,6 +42,7 @@ object MeasurementDigest {
         events: List<CellEvent>,
         range: LongRange,
         locale: Locale,
+        speedResults: List<SpeedResult>,
     ): String {
         val agg = StatsAggregator.aggregate(samples, events, range)
         val vis = samples.filter { it.t in range }
@@ -106,6 +109,20 @@ object MeasurementDigest {
         sb.append(" / p95 ").append(fmtMs(agg.rtt.p95)).append(" ms")
         agg.rttLossPct?.let { sb.append(" · loss ").append(String.format(Locale.US, "%.1f%%", it)) }
         sb.append('\n')
+        speedResults.filter { it.t in range }.maxByOrNull { it.t }?.let { r ->
+            val tm = SimpleDateFormat("HH:mm", locale).format(Date(r.t))
+            sb.append(
+                context.getString(
+                    R.string.digest_speed,
+                    fmtMbps(r.dlMbps * 1_000_000),
+                    fmtMbps(r.ulMbps * 1_000_000),
+                    r.minRttMs?.let { fmtMs(it) } ?: "—",
+                    tm,
+                    r.band,
+                    (r.pci ?: "—").toString(),
+                ),
+            ).append('\n')
+        }
 
         sb.append("## ").append(context.getString(R.string.digest_neighbours)).append('\n')
         if (agg.neighbours.isEmpty()) sb.append("—\n")

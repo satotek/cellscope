@@ -99,6 +99,8 @@ import dev.satotek.cellscope.data.root.PrivAppInstaller
 import dev.satotek.cellscope.data.model.PrivilegeLevel
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.data.snapshot.SnapshotWriter
+import dev.satotek.cellscope.data.speed.SpeedResult
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import dev.satotek.cellscope.ui.components.KeyValueRow
@@ -118,13 +120,15 @@ private const val FILE_AUTHORITY = "dev.satotek.cellscope.files"
 @Composable
 fun MoreScreen(vm: MainViewModel, state: Snapshot, onExit: () -> Unit = {}) {
     val privApp by vm.privApp.collectAsStateWithLifecycle()
-    MoreScreen(state, privApp, setup = { sec -> SettingsScreen(vm, state, showTitle = false, section = sec) }, onExit = onExit)
+    MoreScreen(state, privApp, setup = { sec -> SettingsScreen(vm, state, showTitle = false, section = sec) }, onExit = onExit, vm = vm)
 }
 
 @Composable
-fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Composable (String) -> Unit = {}, onExit: () -> Unit = {}) {
+fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Composable (String) -> Unit = {}, onExit: () -> Unit = {}, vm: MainViewModel? = null) {
     var sub by rememberSaveable { mutableStateOf<String?>(null) }
     var replayPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val emptySpeed = remember { MutableStateFlow(emptyList<SpeedResult>()) }
+    val speedResults by (vm?.speedResults ?: emptySpeed).collectAsStateWithLifecycle()
     val s = sub
     when {
         s == null -> MoreHome(onOpen = { sub = it }, onExit = onExit)
@@ -141,8 +145,11 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
                     LogsPane(onOpen = { replayPath = it.absolutePath })
                 }
             } else {
-                SubScreen(File(rf).name, onBack = { replayPath = null }) { ReplayScreen(File(rf)) }
+                SubScreen(File(rf).name, onBack = { replayPath = null }) { ReplayScreen(File(rf), speedResults) }
             }
+        }
+        "speed" -> SubScreen(stringResource(R.string.more_speed), onBack = { sub = null }) {
+            if (vm != null) SpeedHistoryPane(vm, speedResults) else Text("—", fontFamily = Mono, color = Palette.textDim, modifier = Modifier.padding(16.dp))
         }
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
         "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp, onOpen = { sub = it }) }
@@ -167,6 +174,7 @@ private val settingsSections = listOf(
 private val dataRows = listOf(
     MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
     MoreRow("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
+    MoreRow("speed", R.string.more_speed, Icons.Outlined.Speed),
 )
 private val miscRows = listOf(
     MoreRow("raw", R.string.more_raw, Icons.Outlined.Terminal),
@@ -307,6 +315,57 @@ private fun importLog(context: android.content.Context, uri: Uri, dir: File) {
     context.contentResolver.openInputStream(uri)?.use { inp -> target.outputStream().use { inp.copyTo(it) } }
 }
 private fun deleteLog(csv: File) { jsonlOf(csv).delete(); csv.delete() }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SpeedHistoryPane(vm: MainViewModel, results: List<SpeedResult>) {
+    val context = LocalContext.current
+    val fmtT = remember { SimpleDateFormat("HH:mm:ss", Locale.US) }
+    val visible = remember(results) { results }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("${visible.size}", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
+                if (visible.isNotEmpty()) {
+                    TextButton(onClick = {
+                        val dir = File(context.getExternalFilesDir(null), "logs").apply { mkdirs() }
+                        shareCsv(context, vm.writeSpeedCsv(dir))
+                    }) { Text(stringResource(R.string.speed_share_csv)) }
+                }
+            }
+        }
+        if (visible.isEmpty()) {
+            item { Text("—", fontFamily = Mono, color = Palette.textDim) }
+        } else {
+            item {
+                Panel(padding = 0.dp) {
+                    visible.forEachIndexed { i, r ->
+                        key(r.t) {
+                            SwipeToDelete(onDelete = { vm.deleteSpeedResult(r) }) {
+                                ListItem(
+                                    headlineContent = {
+                                        Text(
+                                            "${fmtT.format(Date(r.t))}  ▼ ${String.format(Locale.US, "%.1f", r.dlMbps)}  ▲ ${String.format(Locale.US, "%.1f", r.ulMbps)}",
+                                            fontFamily = Mono, fontSize = 13.sp,
+                                        )
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            "RTT ${r.minRttMs?.let { String.format(Locale.US, "%.0f", it) } ?: "—"} ms · ${r.rat} ${r.band} PCI ${r.pci ?: "—"} · ${r.rsrp ?: "—"} dBm",
+                                            fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim,
+                                        )
+                                    },
+                                    colors = ListItemDefaults.colors(containerColor = Palette.surface),
+                                )
+                            }
+                            if (i != visible.lastIndex) HorizontalDivider(color = Palette.outline)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

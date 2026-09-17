@@ -17,16 +17,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PictureInPictureAlt
 import androidx.compose.material.icons.outlined.FiberManualRecord
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +48,9 @@ import dev.satotek.cellscope.data.model.CellEntry
 import dev.satotek.cellscope.data.model.PrivilegeLevel
 import dev.satotek.cellscope.data.model.Rat
 import dev.satotek.cellscope.data.model.Snapshot
+import dev.satotek.cellscope.data.speed.SpeedPhase
+import dev.satotek.cellscope.data.speed.SpeedProgress
+import dev.satotek.cellscope.data.speed.SpeedResult
 import dev.satotek.cellscope.data.telephony.BandTables
 import dev.satotek.cellscope.ui.components.ArcGauge
 import dev.satotek.cellscope.ui.components.LevelBar
@@ -64,13 +76,17 @@ fun OverviewScreen(
     onTakeSnapshot: () -> Unit = {},
     recording: Boolean = false,
     onToggleRecording: () -> Unit = {},
+    speedProgress: SpeedProgress? = null,
+    lastSpeed: SpeedResult? = null,
+    onStartSpeedTest: () -> Unit = {},
+    onCancelSpeedTest: () -> Unit = {},
 ) {
     val serving = s.serving
     val n = s.network
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Header(s, capturing, onEnterPip, onTakeSnapshot, recording, onToggleRecording) }
         item { ServingCard(serving, s) }
-        item { NetworkCard(s) }
+        item { NetworkCard(s, speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest) }
         val cc = s.root.physicalChannels
         if (cc.isNotEmpty()) item { CarrierAggregationCard(cc, s.privilege) }
         else if (s.secondaries.isNotEmpty()) item { SecondaryCard(s.secondaries) }
@@ -175,8 +191,15 @@ private fun ServingCard(c: CellEntry?, s: Snapshot) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun NetworkCard(s: Snapshot) {
+private fun NetworkCard(
+    s: Snapshot,
+    speedProgress: SpeedProgress?,
+    lastSpeed: SpeedResult?,
+    onStartSpeedTest: () -> Unit,
+    onCancelSpeedTest: () -> Unit,
+) {
     val n = s.network
     Panel(title = "Network") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -214,8 +237,76 @@ private fun NetworkCard(s: Snapshot) {
             Spacer(Modifier.height(10.dp))
             Text("Cell bandwidths: " + n.cellBandwidthsKhz.joinToString(" + ") { fmtBw(it) }, style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
         }
+        Spacer(Modifier.height(12.dp))
+        SpeedBlock(speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest)
     }
 }
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SpeedBlock(
+    progress: SpeedProgress?,
+    last: SpeedResult?,
+    onStart: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var confirm by remember { mutableStateOf(false) }
+    val running = progress != null && progress.phase != SpeedPhase.DONE && progress.phase != SpeedPhase.ERROR
+    if (running && progress != null) {
+        val phaseLabel = when (progress.phase) {
+            SpeedPhase.LOCATE -> stringResource(R.string.speed_locate)
+            SpeedPhase.DOWNLOAD -> stringResource(R.string.speed_download)
+            SpeedPhase.UPLOAD -> stringResource(R.string.speed_upload)
+            else -> ""
+        }
+        Text(
+            progress.mbps?.let { String.format(Locale.US, "%.1f", it) } ?: "—",
+            style = MaterialTheme.typography.displayLarge,
+            fontFamily = Mono,
+            color = Palette.text,
+        )
+        Text("Mbps · $phaseLabel", style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
+        Spacer(Modifier.height(8.dp))
+        if (progress.phase == SpeedPhase.LOCATE) {
+            LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+        } else {
+            val frac = (progress.elapsedMs / 10_000f).coerceIn(0f, 1f)
+            LinearWavyProgressIndicator(progress = { frac }, modifier = Modifier.fillMaxWidth())
+        }
+        progress.server?.let { Text(it, fontFamily = Mono, fontSize = 11.sp, color = Palette.textDim, modifier = Modifier.padding(top = 6.dp)) }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onCancel, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.cancel)) }
+    } else {
+        FilledTonalButton(onClick = { confirm = true }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ExtraSmallContentPadding) {
+            Icon(Icons.Outlined.Speed, null, Modifier.height(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.speed_test))
+        }
+        if (progress?.phase == SpeedPhase.ERROR) {
+            Text(progress.error ?: "—", fontFamily = Mono, fontSize = 12.sp, color = Palette.poor, modifier = Modifier.padding(top = 6.dp))
+        }
+        val shown = progress?.result ?: last
+        shown?.let { r ->
+            val tm = SimpleDateFormat("HH:mm", Locale.US).format(Date(r.t))
+            Text(
+                "▼ ${fmtSpeed(r.dlMbps)} Mbps · ▲ ${fmtSpeed(r.ulMbps)} Mbps · RTT ${r.minRttMs?.let { String.format(Locale.US, "%.0f", it) } ?: "—"} ms · $tm",
+                fontFamily = Mono, fontSize = 12.sp, color = Palette.text, modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.speed_confirm_title)) },
+            text = { Text(stringResource(R.string.speed_confirm_body)) },
+            confirmButton = { Button(onClick = { confirm = false; onStart() }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.speed_test)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+}
+
+private fun fmtSpeed(mbps: Double): String =
+    if (mbps >= 10) String.format(Locale.US, "%.1f", mbps) else String.format(Locale.US, "%.1f", mbps)
 
 @Composable
 fun CarrierAggregationCard(cc: List<CarrierComponent>, priv: PrivilegeLevel) {

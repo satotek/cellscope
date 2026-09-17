@@ -27,6 +27,19 @@
     <string name="gnb_bits">gNB ID 長</string>
     <string name="gnb_bits_p1">NR の NCI (36 bit) は gNB ID + セル ID で、gNB ID の長さは事業者ごとに 22〜32 bit です。</string>
     <string name="gnb_bits_p2">日本・欧州の多くは 24、米国では 22 が一般的です。合っていないと gNB / セルの表示だけがずれます（NCI 自体は変わりません）。</string>
+    <string name="speed_server">速度測定サーバ</string>
+    <string name="speed_server_hint">wss://…/ndt/v7</string>
+    <string name="speed_server_p1">空欄なら最寄りの M-Lab NDT7 サーバを使います。指定する場合は ndt7 のベース URL（…/ndt/v7）です。</string>
+    <string name="speed_server_p2">M-Lab の測定結果（サーバ・時刻・スループット）は公開データになります。このアプリの他の情報は送りません。</string>
+    <string name="speed_test">速度測定</string>
+    <string name="speed_confirm_title">速度測定</string>
+    <string name="speed_confirm_body">約 200–400 MB 通信します。</string>
+    <string name="speed_locate">サーバ検索</string>
+    <string name="speed_download">下り</string>
+    <string name="speed_upload">上り</string>
+    <string name="speed_share_csv">CSV で共有</string>
+    <string name="more_speed">速度測定</string>
+    <string name="digest_speed">実測: ▼ %1$s / ▲ %2$s Mbps · minRTT %3$s ms (%4$s, %5$s PCI %6$s)</string>
 
     <string name="group_display">表示</string>
     <string name="pip_auto">ホームで PiP</string>
