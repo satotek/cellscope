@@ -1,0 +1,159 @@
+<resources>
+    <string name="priv_normal">通常</string>
+    <string name="priv_root">root</string>
+    <string name="priv_privapp">priv-app</string>
+
+    <string name="perm_title">電話と位置情報の権限が必要です</string>
+    <string name="perm_body">セル ID や PCI などの基地局情報は、Android の仕様上「電話」と「位置情報」の両方が許可されていないと取得できません。位置情報はセル情報の取得にのみ使い、外部には送信しません。</string>
+    <string name="perm_denied_forever">権限が「許可しない」に固定されています。設定から変更してください。</string>
+    <string name="perm_open_settings">設定を開く</string>
+    <string name="perm_grant">権限を許可</string>
+
+    <string name="show_less">閉じる</string>
+    <string name="show_all">すべて表示</string>
+    <string name="info">詳細</string>
+    <string name="pip_enter">ピクチャインピクチャ</string>
+
+    <string name="status_perm_ok">権限 OK</string>
+    <string name="status_perm_missing">権限未許可</string>
+
+    <string name="group_measure">計測</string>
+    <string name="poll_interval">更新間隔</string>
+    <string name="poll_interval_p1">この間隔で requestCellInfoUpdate() を呼び、サンプルを1件記録します。</string>
+    <string name="poll_interval_p2">短いほど追従は速くなりますが、モデムの負荷と電池消費が増えます。目安は 1000 ms です。</string>
+    <string name="ping">Ping</string>
+    <string name="ping_p1">/system/bin/ping で ICMP を1回ずつ送ります。使えない場合は TCP:443 への接続時間で代用します。</string>
+    <string name="ping_p2">Signal タブに RTT の推移と min / avg / max / jitter / loss を表示します。</string>
+    <string name="gnb_bits">gNB ID 長</string>
+    <string name="gnb_bits_p1">NR の NCI (36 bit) は gNB ID + セル ID で、gNB ID の長さは事業者ごとに 22〜32 bit です。</string>
+    <string name="gnb_bits_p2">日本・欧州の多くは 24、米国では 22 が一般的です。合っていないと gNB / セルの表示だけがずれます（NCI 自体は変わりません）。</string>
+
+    <string name="group_display">表示</string>
+    <string name="pip_auto">ホームで PiP</string>
+    <string name="pip_auto_p1">ホームに送ると serving HUD がピクチャインピクチャで残ります。</string>
+    <string name="pip_auto_p2">オフでもホーム画面のアイコンから PiP に入れます。オーバーレイオンのときは自動 PiP しません。</string>
+    <string name="overlay">オーバーレイ</string>
+    <string name="overlay_p1">他のアプリの上にドラッグできる HUD を出します。「他のアプリの上に表示」の許可が必要です。</string>
+    <string name="overlay_p2">タップで serving / スループットを切替、ドラッグで移動。オーバーレイオンで自動 PiP は止まります。</string>
+    <string name="overlay_running">HUD</string>
+    <string name="hud_cycle">表示切替</string>
+    <string name="overlay_close">閉じる</string>
+
+    <string name="group_privilege">権限</string>
+    <string name="root_mode">root モード</string>
+    <string name="root_mode_p1">su で dumpsys telephony.registry と logcat -b radio を取得します。</string>
+    <string name="root_mode_p2">取得できる情報: PhysicalChannelConfig（PCC/SCC・帯域幅）、IMS 登録状態、NSA 状態、APN / IP / QoS。</string>
+    <string name="root_mode_p3">KernelSU Manager でこのアプリに su を許可してください。</string>
+    <string name="privapp_mode">priv-app モード</string>
+    <string name="privapp_mode_p1">KSU モジュールとして /system/priv-app にマウントし、READ_PRIVILEGED_PHONE_STATE を付与します。</string>
+    <string name="privapp_mode_p2">PhysicalChannelConfigListener がイベント駆動で動作し、dumpsys のポーリングが不要になります。また、VoNR の状態も取得できます。</string>
+    <string name="privapp_mode_p3">「有効化」でモジュールを /data/adb/modules に書き込み、再起動後に反映されます。「解除」は次回起動時にモジュールを削除します。</string>
+    <string name="privapp_active">有効</string>
+    <string name="privapp_pending_reboot">再起動で有効</string>
+    <string name="privapp_pending_removal">再起動で解除</string>
+    <string name="privapp_inactive">無効</string>
+    <string name="privapp_enable">有効化</string>
+    <string name="privapp_regenerate">再作成</string>
+    <string name="privapp_reboot">再起動</string>
+    <string name="privapp_remove">解除</string>
+    <string name="check_su">su を確認</string>
+
+    <string name="group_record">記録</string>
+    <string name="csv_log">CSV ログ</string>
+    <string name="csv_recording">記録中</string>
+    <string name="csv_stopped">停止中</string>
+    <string name="csv_log_p1">更新ごとに1行を記録します。GPS、serving cell、RSRP/RSRQ/SINR、CC 数、NR state を含みます。</string>
+    <string name="csv_log_p2">保存先: Android/data/dev.satotek.cellscope/files/logs/</string>
+    <string name="clear_history">履歴をクリア</string>
+    <string name="clear">クリア</string>
+
+    <string name="confirm_install_title">priv-app モードを有効化</string>
+    <string name="confirm_install_body">KSU モジュールを /data/adb/modules に書き込みます。再起動後に有効になります。</string>
+    <string name="confirm_remove_title">priv-app モードを解除</string>
+    <string name="confirm_remove_body">次回起動時にモジュールを削除します。</string>
+    <string name="confirm_clear_body">サンプルとセル変更の履歴を消去します。</string>
+    <string name="confirm_reboot_body">端末を再起動します。</string>
+    <string name="exit_app">終了</string>
+    <string name="exit_body">計測・記録・オーバーレイを止めてアプリを閉じます。</string>
+    <string name="cancel">キャンセル</string>
+
+    <string name="group_radio">無線</string>
+    <string name="rat_lock">ネットワーク種別</string>
+    <string name="rat_lock_p1">モデムが在圏できる RAT を制限します（allowed network types のユーザー枠）。変更は即時に反映され、モデムが再登録します。</string>
+    <string name="rat_lock_p2">バンドやセルの固定は Tensor ではできません。Android に API が無く、NSG が Qualcomm で使う DIAG 経路も Shannon にはありません。</string>
+    <string name="rat_lock_needs_privapp">priv-app モードが必要です</string>
+    <string name="rat_auto">自動</string>
+    <string name="rat_nr_lte">5G+4G</string>
+    <string name="rat_nr">5G</string>
+    <string name="rat_lte">4G</string>
+    <string name="rat_lte_wcdma">4G+3G</string>
+    <string name="rat_wcdma">3G</string>
+    <string name="rat_custom">その他</string>
+    <string name="wifi">Wi‑Fi</string>
+    <string name="airplane">機内モード</string>
+    <string name="reconnect">再登録</string>
+    <string name="reconnect_p1">機内モードを 3 秒間オンにしてから戻し、モデムに登録とセル選択をやり直させます。</string>
+    <string name="needs_root">root モードが必要です</string>
+
+    <string name="tab_home">ホーム</string>
+    <string name="tab_cells">セル一覧</string>
+    <string name="tab_signal">電波</string>
+    <string name="tab_stats">統計</string>
+    <string name="tab_more">その他</string>
+
+    <string name="more_setup">設定</string>
+    <string name="more_raw">Raw</string>
+    <string name="more_logs">ログ</string>
+    <string name="more_snapshots">スナップショット</string>
+    <string name="more_about">アプリ情報</string>
+    <string name="back">戻る</string>
+    <string name="delete">削除</string>
+    <string name="confirm_delete_log_title">ログを削除</string>
+    <string name="confirm_delete_log_body">%1$s</string>
+    <string name="log_csv_only">CSV のみ</string>
+    <string name="replay_all">全体</string>
+    <string name="replay_failed">失敗</string>
+    <string name="replay_meta">%1$d サンプル · %2$d セル変更 · %3$s–%4$s</string>
+    <string name="confirm_delete_snapshot_title">スナップショットを削除</string>
+    <string name="share">共有</string>
+    <string name="snapshot_take">スナップショット</string>
+    <string name="snapshot_failed">失敗</string>
+    <string name="osm_attribution">© OpenStreetMap contributors</string>
+
+    <string name="about_version">バージョン</string>
+    <string name="about_privilege">権限レベル</string>
+    <string name="about_permissions">許可</string>
+    <string name="about_ksu">KSU モジュール</string>
+    <string name="about_build">ビルド</string>
+    <string name="build_debug">debug</string>
+    <string name="build_release">release</string>
+
+    <string name="stats_rat_band">RAT / バンド</string>
+    <string name="stats_cell_changes">セル変更</string>
+    <string name="stats_rsrp">RSRP</string>
+    <string name="stats_sinr">SINR</string>
+    <string name="stats_ca">CA</string>
+    <string name="stats_throughput">スループット</string>
+    <string name="stats_rtt">RTT</string>
+    <string name="stats_max">max</string>
+    <string name="stats_avg">avg</string>
+    <string name="stats_p95">p95</string>
+    <string name="stats_loss">loss</string>
+    <string name="stats_rx">rx</string>
+    <string name="stats_tx">tx</string>
+    <string name="stats_cc1">1CC</string>
+    <string name="stats_cc2">2CC</string>
+    <string name="stats_cc3">3CC</string>
+    <string name="stats_cc2p">2CC+</string>
+    <string name="stats_poor">不良</string>
+    <string name="stats_fair">可</string>
+    <string name="stats_good">良好</string>
+    <string name="stats_cc4p">4CC+</string>
+    <string name="stats_kind_rat">RAT</string>
+    <string name="stats_kind_band">BAND</string>
+    <string name="stats_kind_ho">HO</string>
+    <string name="win_2m">2m</string>
+    <string name="win_5m">5m</string>
+    <string name="win_15m">15m</string>
+    <string name="win_60m">60m</string>
+</resources>

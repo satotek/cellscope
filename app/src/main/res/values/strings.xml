@@ -1,0 +1,175 @@
+<resources>
+    <string name="app_name">CellScope</string>
+
+    <!-- privilege tiers -->
+    <string name="priv_normal">normal</string>
+    <string name="priv_root">root</string>
+    <string name="priv_privapp">priv-app</string>
+
+    <!-- permission gate -->
+    <string name="perm_title">Phone and location permissions are required</string>
+    <string name="perm_body">Android only exposes cell identifiers (cell ID, PCI, …) when both Phone and Location are granted. Location is used solely to read cell information and never leaves the device.</string>
+    <string name="perm_denied_forever">Permission is set to “Don’t allow”. Change it in Settings.</string>
+    <string name="perm_open_settings">Open Settings</string>
+    <string name="perm_grant">Grant permissions</string>
+
+    <!-- overview -->
+    <string name="show_less">Show less</string>
+    <string name="show_all">Show all</string>
+    <string name="info">Details</string>
+    <string name="pip_enter">Picture-in-picture</string>
+
+    <!-- settings: status -->
+    <string name="status_perm_ok">perms OK</string>
+    <string name="status_perm_missing">perms missing</string>
+
+    <!-- settings: measurement -->
+    <string name="group_measure">Measurement</string>
+    <string name="poll_interval">Update interval</string>
+    <string name="poll_interval_p1">Calls requestCellInfoUpdate() at this interval and records one sample each time.</string>
+    <string name="poll_interval_p2">Shorter tracks changes faster but costs modem load and battery. 1000 ms is a good default.</string>
+    <string name="ping">Ping</string>
+    <string name="ping_p1">Sends one ICMP echo per interval via /system/bin/ping. Falls back to TCP connect time to port 443 when ICMP is unavailable.</string>
+    <string name="ping_p2">The Signal tab shows the RTT trend with min / avg / max / jitter / loss.</string>
+    <string name="gnb_bits">gNB ID length</string>
+    <string name="gnb_bits_p1">The NR NCI (36 bit) is gNB ID + cell ID; operators choose a gNB ID length between 22 and 32 bits.</string>
+    <string name="gnb_bits_p2">24 is common in Japan and Europe, 22 in the US. A wrong value only shifts the gNB / cell split; the NCI itself is unaffected.</string>
+
+    <!-- settings: display -->
+    <string name="group_display">Display</string>
+    <string name="pip_auto">PiP on Home</string>
+    <string name="pip_auto_p1">Leaving with Home keeps the serving HUD in a picture-in-picture window.</string>
+    <string name="pip_auto_p2">The header icon still opens PiP when this is off. Overlay on disables auto-enter so the two do not stack.</string>
+    <string name="overlay">Overlay</string>
+    <string name="overlay_p1">A draggable HUD stays above other apps. Android will ask for “Display over other apps”.</string>
+    <string name="overlay_p2">Tap the HUD to switch serving / throughput. Drag to move. Overlay on turns off auto-PiP.</string>
+    <string name="overlay_running">HUD</string>
+    <string name="hud_cycle">Switch display</string>
+    <string name="overlay_close">Close</string>
+
+    <!-- settings: privilege -->
+    <string name="group_privilege">Privilege</string>
+    <string name="root_mode">Root mode</string>
+    <string name="root_mode_p1">Reads dumpsys telephony.registry and logcat -b radio through su.</string>
+    <string name="root_mode_p2">Adds PhysicalChannelConfig (PCC/SCC, bandwidth), IMS registration, NSA state and APN / IP / QoS of data calls.</string>
+    <string name="root_mode_p3">Grant su to this app in KernelSU Manager.</string>
+    <string name="privapp_mode">priv-app mode</string>
+    <string name="privapp_mode_p1">Mounts this app into /system/priv-app as a KSU module, granting READ_PRIVILEGED_PHONE_STATE.</string>
+    <string name="privapp_mode_p2">PhysicalChannelConfigListener then works event-driven (no dumpsys polling) and VoNR state becomes readable.</string>
+    <string name="privapp_mode_p3">“Enable” writes the module to /data/adb/modules; it takes effect after a reboot. “Remove” deletes the module at the next boot.</string>
+    <string name="privapp_active">active</string>
+    <string name="privapp_pending_reboot">active after reboot</string>
+    <string name="privapp_pending_removal">removed after reboot</string>
+    <string name="privapp_inactive">inactive</string>
+    <string name="privapp_enable">Enable</string>
+    <string name="privapp_regenerate">Rewrite</string>
+    <string name="privapp_reboot">Reboot</string>
+    <string name="privapp_remove">Remove</string>
+    <string name="check_su">Check su</string>
+
+    <!-- settings: recording -->
+    <string name="group_record">Recording</string>
+    <string name="csv_log">CSV log</string>
+    <string name="csv_recording">recording</string>
+    <string name="csv_stopped">stopped</string>
+    <string name="csv_log_p1">Writes one row per update: GPS, serving cell, RSRP/RSRQ/SINR, CC count and NR state.</string>
+    <string name="csv_log_p2">Location: Android/data/dev.satotek.cellscope/files/logs/</string>
+    <string name="clear_history">Clear history</string>
+    <string name="clear">Clear</string>
+
+    <!-- confirm dialogs -->
+    <string name="confirm_install_title">Enable priv-app mode</string>
+    <string name="confirm_install_body">Writes a KSU module to /data/adb/modules. It becomes active after a reboot.</string>
+    <string name="confirm_remove_title">Remove priv-app mode</string>
+    <string name="confirm_remove_body">The module is deleted at the next boot.</string>
+    <string name="confirm_clear_body">Discards all samples and cell-change history.</string>
+    <string name="confirm_reboot_body">Reboots the device.</string>
+    <string name="exit_app">Exit</string>
+    <string name="exit_body">Stops measuring, recording and the overlay, and closes the app.</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- settings: radio -->
+    <string name="group_radio">Radio</string>
+    <string name="rat_lock">Network type</string>
+    <string name="rat_lock_p1">Restricts which RATs the modem may camp on (allowed network types, user slot). The modem re-registers immediately.</string>
+    <string name="rat_lock_p2">Band or cell locking is not possible on Tensor: Android has no API for it and Shannon lacks the DIAG path NSG uses on Qualcomm.</string>
+    <string name="rat_lock_needs_privapp">Requires priv-app mode</string>
+    <string name="rat_auto">Auto</string>
+    <string name="rat_nr_lte">5G+4G</string>
+    <string name="rat_nr">5G</string>
+    <string name="rat_lte">4G</string>
+    <string name="rat_lte_wcdma">4G+3G</string>
+    <string name="rat_wcdma">3G</string>
+    <string name="rat_custom">custom</string>
+    <string name="wifi">Wi‑Fi</string>
+    <string name="airplane">Airplane mode</string>
+    <string name="reconnect">Re-register</string>
+    <string name="reconnect_p1">Toggles airplane mode on and off (3 s) so the modem performs a fresh registration and cell selection.</string>
+    <string name="needs_root">Requires root mode</string>
+
+    <!-- tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_cells">Cells</string>
+    <string name="tab_signal">Signal</string>
+    <string name="tab_stats">Stats</string>
+    <string name="tab_more">More</string>
+
+    <!-- more -->
+    <string name="more_setup">Setup</string>
+    <string name="more_raw">Raw</string>
+    <string name="more_logs">Logs</string>
+    <string name="more_snapshots">Snapshots</string>
+    <string name="more_about">About</string>
+    <string name="back">Back</string>
+    <string name="delete">Delete</string>
+    <string name="confirm_delete_log_title">Delete log</string>
+    <string name="confirm_delete_log_body">%1$s</string>
+    <string name="log_csv_only">CSV only</string>
+    <string name="replay_all">All</string>
+    <string name="replay_failed">Failed</string>
+    <string name="replay_meta">%1$d samples · %2$d cell changes · %3$s–%4$s</string>
+    <string name="confirm_delete_snapshot_title">Delete snapshot</string>
+    <string name="share">Share</string>
+    <string name="snapshot_take">Snapshot</string>
+    <string name="snapshot_failed">Failed</string>
+    <string name="osm_attribution">© OpenStreetMap contributors</string>
+
+    <!-- about -->
+    <string name="about_version">Version</string>
+    <string name="about_privilege">Privilege</string>
+    <string name="about_permissions">Permissions</string>
+    <string name="about_ksu">KSU module</string>
+    <string name="about_build">Build</string>
+    <string name="build_debug">debug</string>
+    <string name="build_release">release</string>
+
+    <!-- stats -->
+    <string name="stats_rat_band">RAT / band</string>
+    <string name="stats_cell_changes">Cell changes</string>
+    <string name="stats_rsrp">RSRP</string>
+    <string name="stats_sinr">SINR</string>
+    <string name="stats_ca">CA</string>
+    <string name="stats_throughput">Throughput</string>
+    <string name="stats_rtt">RTT</string>
+    <string name="stats_max">max</string>
+    <string name="stats_avg">avg</string>
+    <string name="stats_p95">p95</string>
+    <string name="stats_loss">loss</string>
+    <string name="stats_rx">rx</string>
+    <string name="stats_tx">tx</string>
+    <string name="stats_cc1">1CC</string>
+    <string name="stats_cc2">2CC</string>
+    <string name="stats_cc3">3CC</string>
+    <string name="stats_cc2p">2CC+</string>
+    <string name="stats_poor">poor</string>
+    <string name="stats_fair">fair</string>
+    <string name="stats_good">good</string>
+    <string name="stats_cc4p">4CC+</string>
+    <string name="stats_kind_rat">RAT</string>
+    <string name="stats_kind_band">BAND</string>
+    <string name="stats_kind_ho">HO</string>
+    <string name="win_2m">2m</string>
+    <string name="win_5m">5m</string>
+    <string name="win_15m">15m</string>
+    <string name="win_60m">60m</string>
+</resources>

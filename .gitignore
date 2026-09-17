@@ -1,0 +1,8 @@
+.gradle/
+build/
+.idea/
+local.properties
+dist/
+ksu-module/system/priv-app/CellScope/*.apk
+*.iml
+.DS_Store

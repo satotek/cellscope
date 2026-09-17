@@ -1,0 +1,6 @@
+id=cellscope_privapp
+name=CellScope priv-app
+version=v0.1.0
+versionCode=1
+author=satotek.dev
+description=Mounts CellScope into /system/priv-app so it gets READ_PRIVILEGED_PHONE_STATE (PhysicalChannelConfig, NR/CA details).
