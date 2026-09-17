@@ -8,3 +8,4 @@ ksu-module/system/priv-app/CellScope/*.apk
 .DS_Store
 .kotlin/
 docs/screenshots/
+docs/tasks/
