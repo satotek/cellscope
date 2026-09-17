@@ -11,7 +11,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Dns
 import okhttp3.OkHttpClient
-import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -33,11 +32,14 @@ class CellularBind(
             }
         network?.let { n ->
             b.socketFactory(n.socketFactory)
+            // Resolve on the cellular Network first; some carriers' DNS misses
+            // measurementlab.net, so fall back to the system resolver. Sockets
+            // still go through [n] so the transfer itself stays on cellular.
             b.dns(object : Dns {
                 override fun lookup(hostname: String): List<java.net.InetAddress> {
-                    val addrs = n.getAllByName(hostname)
-                    if (addrs.isEmpty()) throw UnknownHostException(hostname)
-                    return addrs.toList()
+                    val cellular = runCatching { n.getAllByName(hostname).toList() }.getOrNull().orEmpty()
+                    if (cellular.isNotEmpty()) return cellular
+                    return Dns.SYSTEM.lookup(hostname)
                 }
             })
         }

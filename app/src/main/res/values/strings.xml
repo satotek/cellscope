@@ -45,6 +45,7 @@
     <string name="speed_download">Down</string>
     <string name="speed_upload">Up</string>
     <string name="speed_share_csv">Share CSV</string>
+    <string name="speed_err_dns">DNS</string>
     <string name="more_speed">Speed tests</string>
     <string name="digest_speed">Measured: ▼ %1$s / ▲ %2$s Mbps · minRTT %3$s ms (%4$s, %5$s PCI %6$s)</string>
 

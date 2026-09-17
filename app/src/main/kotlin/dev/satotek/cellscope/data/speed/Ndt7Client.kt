@@ -2,6 +2,7 @@ package dev.satotek.cellscope.data.speed
 
 import android.content.Context
 import android.util.Log
+import dev.satotek.cellscope.R
 import dev.satotek.cellscope.data.model.CellEntry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -23,6 +24,7 @@ import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
 import java.net.URI
+import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -48,6 +50,7 @@ object Ndt7Client {
         Log.i(TAG, "viaCellular=${bound.viaCellular} serverPref=${customServer ?: "mlab"}")
         try {
             trySend(SpeedProgress(SpeedPhase.LOCATE, viaCellular = bound.viaCellular))
+            if (bound.viaCellular) delay(300)
             val ep = if (customServer.isNullOrBlank()) locate(client) else parseCustom(customServer)
             trySend(SpeedProgress(SpeedPhase.LOCATE, server = ep.label, viaCellular = bound.viaCellular))
             Log.i(TAG, "viaCellular=${bound.viaCellular} server=${ep.label}")
@@ -96,7 +99,7 @@ object Ndt7Client {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "error viaCellular=${bound.viaCellular}", e)
-            trySend(SpeedProgress(SpeedPhase.ERROR, viaCellular = bound.viaCellular, error = e.toString()))
+            trySend(SpeedProgress(SpeedPhase.ERROR, viaCellular = bound.viaCellular, error = errorLabel(context, e)))
         } finally {
             bound.close()
             runCatching { client.dispatcher.executorService.shutdown() }
@@ -106,7 +109,29 @@ object Ndt7Client {
 
     private data class Endpoints(val download: String, val upload: String, val label: String)
 
+    private fun errorLabel(context: Context, e: Exception): String = when (e) {
+        is UnknownHostException -> context.getString(R.string.speed_err_dns)
+        is java.net.SocketTimeoutException -> "timeout"
+        is java.net.ConnectException -> "connect"
+        else -> e.message?.take(80) ?: e.javaClass.simpleName
+    }
+
     private fun locate(client: OkHttpClient): Endpoints {
+        var last: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                return locateOnce(client)
+            } catch (e: Exception) {
+                last = e
+                if (e is CancellationException) throw e
+                if (attempt == 2) throw e
+                Thread.sleep(400L * (attempt + 1))
+            }
+        }
+        throw last ?: IllegalStateException("locate")
+    }
+
+    private fun locateOnce(client: OkHttpClient): Endpoints {
         val req = Request.Builder().url(LOCATE).build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw IllegalStateException("locate HTTP ${resp.code}")
@@ -150,8 +175,6 @@ object Ndt7Client {
         val serverBytes = AtomicLong(0)
         val serverAt2s = AtomicLong(-1)
         val minRtt = AtomicReference<Double?>(null)
-        val lastBytes = AtomicLong(0)
-        val lastT = AtomicLong(0)
 
         val req = Request.Builder()
             .url(url)
@@ -176,15 +199,23 @@ object Ndt7Client {
             withTimeout(15_000) { opened.await() }
             val t0 = System.nanoTime()
             fun elapsed() = (System.nanoTime() - t0) / 1_000_000L
-            lastT.set(t0)
+            // 1 s rolling window for the "current" rate; the headline uses the
+            // same 2–10 s average as the final result so the number does not jump 40↔0.
+            var rollBytes = 0L
+            var rollT = t0
 
             val ticker = launch {
                 while (isActive && elapsed() < TEST_MS) {
-                    delay(200)
+                    delay(250)
                     val e = elapsed()
                     snapshot2s(e, localBytes, localAt2s, serverBytes, serverAt2s)
-                    val now = localBytes.get()
-                    val inst = mbps(now - lastBytes.getAndSet(now), ((System.nanoTime() - lastT.getAndSet(System.nanoTime())) / 1_000_000L).coerceAtLeast(1))
+                    val wired = maxOf(localBytes.get(), serverBytes.get())
+                    val rollDt = ((System.nanoTime() - rollT) / 1_000_000L).coerceAtLeast(1)
+                    val inst = mbps(wired - rollBytes, rollDt)
+                    if (rollDt >= 1_000L) {
+                        rollBytes = wired
+                        rollT = System.nanoTime()
+                    }
                     onProgress(
                         SpeedProgress(
                             if (upload) SpeedPhase.UPLOAD else SpeedPhase.DOWNLOAD,

@@ -686,6 +686,7 @@ private val ossNotices = listOf(
     Notice("Jetpack Compose · Material 3", "The Android Open Source Project", "Apache-2.0", "https://developer.android.com/jetpack/compose"),
     Notice("Material Symbols", "Google LLC", "Apache-2.0", "https://github.com/google/material-design-icons"),
     Notice("AndroidX Security Crypto (Tink)", "Google LLC", "Apache-2.0", "https://github.com/google/tink"),
+    Notice("OkHttp / Okio", "Square, Inc.", "Apache-2.0", "https://github.com/square/okhttp"),
 )
 
 @Composable
@@ -710,6 +711,20 @@ private fun OssPane() {
                         supportingContent = { Text("operations.osmfoundation.org/policies/tiles", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) },
                         trailingContent = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim) },
                         modifier = Modifier.clickable { open("https://operations.osmfoundation.org/policies/tiles/") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
+            }
+        }
+        item {
+            Column {
+                Text(stringResource(R.string.speed_test), style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+                Panel(padding = 0.dp) {
+                    ListItem(
+                        headlineContent = { Text("Measurement Lab (NDT7)") },
+                        supportingContent = { Text("measurementlab.net", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim) },
+                        modifier = Modifier.clickable { open("https://www.measurementlab.net/") },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     )
                 }

@@ -16,6 +16,13 @@ Jetpack Compose (ui, foundation, material3) — The Android Open Source Project
 Material Symbols / Material Icons — Google LLC
   https://github.com/google/material-design-icons
 AndroidX Security Crypto (Tink) — The Android Open Source Project / Google LLC
+OkHttp / Okio — Square, Inc.
+  https://github.com/square/okhttp
+
+## Speed test
+NDT7 protocol and default servers — Measurement Lab (M-Lab)
+  https://www.measurementlab.net/
+  Results sent to M-Lab are published as open data.
 
 ## Apache License 2.0
 Licensed under the Apache License, Version 2.0 (the "License");

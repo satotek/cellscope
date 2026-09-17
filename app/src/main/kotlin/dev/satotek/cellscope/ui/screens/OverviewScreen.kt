@@ -259,8 +259,9 @@ private fun SpeedBlock(
             SpeedPhase.UPLOAD -> stringResource(R.string.speed_upload)
             else -> ""
         }
+        val shownMbps = if (progress.elapsedMs >= 2_000L) progress.avgMbps ?: progress.mbps else progress.mbps
         Text(
-            progress.mbps?.let { String.format(Locale.US, "%.1f", it) } ?: "—",
+            shownMbps?.let { String.format(Locale.US, "%.1f", it) } ?: "—",
             style = MaterialTheme.typography.displayLarge,
             fontFamily = Mono,
             color = Palette.text,
