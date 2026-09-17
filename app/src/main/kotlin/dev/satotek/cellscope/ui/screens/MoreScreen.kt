@@ -1,6 +1,13 @@
 package dev.satotek.cellscope.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -134,7 +141,9 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
             }
         }
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
-        "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp) }
+        "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp, onOpen = { sub = it }) }
+        "license" -> SubScreen(stringResource(R.string.about_license), onBack = { sub = "about" }) { AssetTextPane("LICENSE") }
+        "oss" -> SubScreen(stringResource(R.string.about_oss), onBack = { sub = "about" }) { AssetTextPane("THIRD_PARTY.md") }
         else -> MoreHome(onOpen = { sub = it }, onExit = onExit)
         }
     }
@@ -481,17 +490,27 @@ private fun decodeThumb(file: File, maxPx: Int = 128): android.graphics.Bitmap? 
     return BitmapFactory.decodeFile(file.absolutePath, BitmapFactory.Options().apply { inSampleSize = sample })
 }
 
+/** Publication facts in one place; strings.xml stays for translatable labels only. */
+object AppInfo {
+    const val AUTHOR = "satotek"
+    const val AUTHOR_URL = "https://satotek.dev"
+    const val SOURCE_URL = "https://github.com/satotek/cellscope"
+    const val LICENSE = "MIT"
+    const val COPYRIGHT = "© 2026 satotek"
+}
+
 @Composable
-private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?) {
+private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?, onOpen: (String) -> Unit) {
     val context = LocalContext.current
-    val version = remember {
+    val pkgInfo = remember {
         runCatching {
             val pm = context.packageManager
-            val pkg = context.packageName
-            if (Build.VERSION.SDK_INT >= 33) pm.getPackageInfo(pkg, android.content.pm.PackageManager.PackageInfoFlags.of(0)).versionName
-            else @Suppress("DEPRECATION") pm.getPackageInfo(pkg, 0).versionName
-        }.getOrNull() ?: "—"
+            pm.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+        }.getOrNull()
     }
+    val version = pkgInfo?.versionName ?: "—"
+    val code = pkgInfo?.longVersionCode ?: 0L
+    val icon = remember { runCatching { context.packageManager.getApplicationIcon(context.packageName).toBitmap(192, 192).asImageBitmap() }.getOrNull() }
     val debug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
     val ksu = when (privApp) {
         PrivAppInstaller.State.ACTIVE -> stringResource(R.string.privapp_active)
@@ -500,20 +519,72 @@ private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?) {
         PrivAppInstaller.State.NOT_INSTALLED -> stringResource(R.string.privapp_inactive)
         null -> if (state.privilege == PrivilegeLevel.PRIV_APP) stringResource(R.string.privapp_active) else stringResource(R.string.privapp_inactive)
     }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+    fun open(url: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) Image(icon, null, Modifier.size(64.dp).clip(RoundedCornerShape(16.dp)))
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("CellScope", style = MaterialTheme.typography.headlineSmall, color = Palette.text)
+                    Text(
+                        "$version ($code) · ${stringResource(if (debug) R.string.build_debug else R.string.build_release)}",
+                        fontFamily = Mono, fontSize = 13.sp, color = Palette.textDim,
+                    )
+                    Text(AppInfo.COPYRIGHT, style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
+                }
+            }
+        }
         item {
             Panel {
-                KeyValueRow(stringResource(R.string.about_version), version)
                 KeyValueRow(stringResource(R.string.about_privilege), stringResource(state.privilege.labelRes))
                 KeyValueRow(
                     stringResource(R.string.about_permissions),
                     stringResource(if (state.permissionsGranted) R.string.status_perm_ok else R.string.status_perm_missing),
                 )
                 KeyValueRow(stringResource(R.string.about_ksu), ksu)
-                KeyValueRow(stringResource(R.string.about_build), stringResource(if (debug) R.string.build_debug else R.string.build_release))
+                KeyValueRow("Android", "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+                KeyValueRow(stringResource(R.string.about_device), "${Build.MANUFACTURER} ${Build.MODEL}")
+            }
+        }
+        item {
+            Panel(padding = 0.dp) {
+                LinkRow(stringResource(R.string.about_author), AppInfo.AUTHOR, external = true) { open(AppInfo.AUTHOR_URL) }
+                HorizontalDivider(color = Palette.outline)
+                LinkRow(stringResource(R.string.about_source), AppInfo.SOURCE_URL.removePrefix("https://"), external = true) { open(AppInfo.SOURCE_URL) }
+                HorizontalDivider(color = Palette.outline)
+                LinkRow(stringResource(R.string.about_license), AppInfo.LICENSE) { onOpen("license") }
+                HorizontalDivider(color = Palette.outline)
+                LinkRow(stringResource(R.string.about_oss), null) { onOpen("oss") }
             }
         }
     }
+}
+
+@Composable
+private fun LinkRow(title: String, value: String?, external: Boolean = false, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = value?.let { { Text(it, fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) } },
+        trailingContent = {
+            Icon(if (external) Icons.AutoMirrored.Outlined.OpenInNew else Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Palette.textDim)
+        },
+        modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+/** Plain-text asset (LICENSE, THIRD_PARTY.md) rendered as-is; these files are the legal record, so no markdown styling. */
+@Composable
+private fun AssetTextPane(name: String) {
+    val context = LocalContext.current
+    val text = remember(name) { runCatching { context.assets.open(name).bufferedReader().readText() }.getOrElse { "—" } }
+    Text(
+        text,
+        fontFamily = Mono, fontSize = 12.sp, color = Palette.text,
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    )
 }
 
 private fun shareCsv(context: android.content.Context, file: File) {

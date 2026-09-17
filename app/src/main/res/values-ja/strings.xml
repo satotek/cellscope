@@ -191,4 +191,9 @@
     <string name="lang_system">システム</string>
     <string name="ai_attach_log">ログファイルを添付</string>
     <string name="more_data">データ</string>
+    <string name="about_device">端末</string>
+    <string name="about_author">作者</string>
+    <string name="about_source">ソースコード</string>
+    <string name="about_license">ライセンス</string>
+    <string name="about_oss">オープンソースライセンス</string>
 </resources>

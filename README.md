@@ -113,13 +113,26 @@ More → ログ → タップで Replay: Signal タブと同じパネル（`Sign
 
 ## More タブ
 
-右端は一覧メニュー: **設定** / **Raw** / **ログ**（CSV 一覧 → タップで共有、長押しで削除。`FileProvider`
-authority `dev.satotek.cellscope.files`）/ **アプリ情報**。サブ画面は `BackHandler` で戻る（Navigation ライブラリ無し）。
+右端は一覧メニュー。3 グループ + 終了:
+
+- **設定**: 計測 / 表示 / 無線 / 権限 / 記録 / AI — 1 グループ = 1 サブ画面（`SettingsScreen(section = …)` で絞る）
+- **データ**: ログ / スナップショット — **左スワイプで削除**（Gmail 式、スナックバーで元に戻す。実削除はスナックバーが消えてから）、
+  見出しに件数・合計サイズと「すべて削除」。タップで共有 / 再生、長押しでも削除できる
+- Raw / **アプリ情報**（バージョン・端末・権限、作者 / ソース / ライセンス / OSS ライセンス。`AppInfo` に URL 等をまとめてある。
+  ライセンス本文は `assets/LICENSE`（ルートの `LICENSE` はそのシンボリックリンク）、第三者通知は `assets/THIRD_PARTY.md`）
+- **終了**: `vm.shutdown()` → `finishAndRemoveTask()` → プロセス kill。ホームに戻るだけでは計測が続く（オーバーレイ HUD のため）
+
+サブ画面は `BackHandler` で戻る（Navigation ライブラリ無し）。`FileProvider` authority は `dev.satotek.cellscope.files`。
 
 ## 設定（More → 設定）
 
 Pixel の設定アプリと同じ「グループ化リスト」形式。説明文は各行の ⓘ からボトムシートで開く。
-状態（権限レベル / 権限 / su / GPS）は上部のチップ列にまとめている。
+
+- **表示**: テーマ（システム / ライト / ダーク、`MainViewModel.themeMode` を Activity とオーバーレイの両方が読む。
+  強制テーマ時はステータスバーのアイコン色も `WindowInsetsController` で追従）、
+  言語（`LocaleManager.applicationLocales`。OS の「アプリの言語」と同期し、Activity 再生成で即反映）
+- **AI**: プロバイダ / API キー（`EncryptedSharedPreferences`）。キー無しでも Stats / Replay の ✨ から要約の共有・コピーはできる。
+  要約シートの「ログファイルを添付」を入れると共有には CSV が `EXTRA_STREAM` で付き、API 直呼びにはCSV 末尾 150k 文字がプロンプトに入る
 
 ## Data calls（root）
 
