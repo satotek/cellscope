@@ -12,6 +12,9 @@ import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -100,6 +103,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import dev.satotek.cellscope.ui.components.KeyValueRow
 import dev.satotek.cellscope.ui.components.Panel
+import dev.satotek.cellscope.ui.components.Tag
 import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import java.io.File
@@ -143,7 +147,7 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
         "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp, onOpen = { sub = it }) }
         "license" -> SubScreen(stringResource(R.string.about_license), onBack = { sub = "about" }) { AssetTextPane("LICENSE") }
-        "oss" -> SubScreen(stringResource(R.string.about_oss), onBack = { sub = "about" }) { AssetTextPane("THIRD_PARTY.md") }
+        "oss" -> SubScreen(stringResource(R.string.about_oss), onBack = { sub = "about" }) { OssPane() }
         else -> MoreHome(onOpen = { sub = it }, onExit = onExit)
         }
     }
@@ -247,11 +251,24 @@ private fun LogsPane(onOpen: (File) -> Unit) {
     val fmtT = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) }
     val csvOnly = stringResource(R.string.log_csv_only)
 
+    // SAF picker: copies .csv / .jsonl into the logs dir (a CSV + its JSONL can be picked together).
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val dir = File(context.getExternalFilesDir(null), "logs").apply { mkdirs() }
+        uris.forEach { uri -> runCatching { importLog(context, uri, dir) } }
+        if (uris.isNotEmpty()) gen++
+    }
     FileListScaffold(
         files = files,
         totalBytes = files.sumOf { it.length() + jsonlOf(it).length() },
         deletes = deletes,
         deleteAllTitle = stringResource(R.string.confirm_delete_log_title),
+        headerAction = {
+            TextButton(onClick = { importLauncher.launch(arrayOf("text/*", "application/json", "application/octet-stream")) }) {
+                Icon(Icons.Outlined.FileOpen, null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.import_log))
+            }
+        },
     ) { f ->
         val kind = if (jsonlOf(f).isFile) "jsonl" else csvOnly
         ListItem(
@@ -277,6 +294,18 @@ private fun LogsPane(onOpen: (File) -> Unit) {
 }
 
 private fun jsonlOf(csv: File) = File(csv.parentFile, csv.nameWithoutExtension + ".jsonl")
+
+/** Copies one picked document into [dir], keeping its display name; only CellScope's own extensions are accepted. */
+private fun importLog(context: android.content.Context, uri: Uri, dir: File) {
+    val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+    } ?: uri.lastPathSegment?.substringAfterLast('/') ?: return
+    if (!name.endsWith(".csv", true) && !name.endsWith(".jsonl", true)) return
+    var target = File(dir, name)
+    var n = 1
+    while (target.exists()) { target = File(dir, "${name.substringBeforeLast('.')}-${n++}.${name.substringAfterLast('.')}") }
+    context.contentResolver.openInputStream(uri)?.use { inp -> target.outputStream().use { inp.copyTo(it) } }
+}
 private fun deleteLog(csv: File) { jsonlOf(csv).delete(); csv.delete() }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -384,6 +413,7 @@ private fun FileListScaffold(
     totalBytes: Long,
     deletes: PendingDeletes,
     deleteAllTitle: String,
+    headerAction: @Composable () -> Unit = {},
     row: @Composable (File) -> Unit,
 ) {
     var confirmAll by remember { mutableStateOf(false) }
@@ -396,9 +426,12 @@ private fun FileListScaffold(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text("${files.size} · ${fmtSize(totalBytes)}", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
-                    if (files.isNotEmpty()) {
-                        TextButton(onClick = { confirmAll = true }) {
-                            Text(stringResource(R.string.delete_all), color = Palette.poor)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        headerAction()
+                        if (files.isNotEmpty()) {
+                            TextButton(onClick = { confirmAll = true }) {
+                                Text(stringResource(R.string.delete_all), color = Palette.poor)
+                            }
                         }
                     }
                 }
@@ -575,16 +608,89 @@ private fun LinkRow(title: String, value: String?, external: Boolean = false, on
     )
 }
 
-/** Plain-text asset (LICENSE, THIRD_PARTY.md) rendered as-is; these files are the legal record, so no markdown styling. */
+/** Plain-text asset rendered as-is inside a card; the file is the legal record, so no markdown styling. */
 @Composable
 private fun AssetTextPane(name: String) {
     val context = LocalContext.current
     val text = remember(name) { runCatching { context.assets.open(name).bufferedReader().readText() }.getOrElse { "—" } }
-    Text(
-        text,
-        fontFamily = Mono, fontSize = 12.sp, color = Palette.text,
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-    )
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Panel { Text(text, fontFamily = Mono, fontSize = 12.sp, color = Palette.text) }
+    }
+}
+
+private data class Notice(val name: String, val author: String, val license: String, val url: String)
+
+/** Keep in sync with THIRD_PARTY.md at the repo root — that file is the record, this list is the UI. */
+private val ossNotices = listOf(
+    Notice("Kotlin", "JetBrains s.r.o.", "Apache-2.0", "https://github.com/JetBrains/kotlin"),
+    Notice("AndroidX core · activity · lifecycle", "The Android Open Source Project", "Apache-2.0", "https://android.googlesource.com/platform/frameworks/support"),
+    Notice("Jetpack Compose · Material 3", "The Android Open Source Project", "Apache-2.0", "https://developer.android.com/jetpack/compose"),
+    Notice("Material Symbols", "Google LLC", "Apache-2.0", "https://github.com/google/material-design-icons"),
+    Notice("AndroidX Security Crypto (Tink)", "Google LLC", "Apache-2.0", "https://github.com/google/tink"),
+)
+
+@Composable
+private fun OssPane() {
+    val context = LocalContext.current
+    fun open(url: String) = runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Column {
+                Text(stringResource(R.string.oss_map), style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+                Panel(padding = 0.dp) {
+                    ListItem(
+                        headlineContent = { Text("OpenStreetMap") },
+                        supportingContent = { Text("© OpenStreetMap contributors · ODbL 1.0", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim) },
+                        modifier = Modifier.clickable { open("https://www.openstreetmap.org/copyright") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    HorizontalDivider(color = Palette.outline)
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.oss_tile_policy)) },
+                        supportingContent = { Text("operations.osmfoundation.org/policies/tiles", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) },
+                        trailingContent = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim) },
+                        modifier = Modifier.clickable { open("https://operations.osmfoundation.org/policies/tiles/") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
+            }
+        }
+        item {
+            Column {
+                Text(stringResource(R.string.oss_libraries), style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+                Panel(padding = 0.dp) {
+                    ossNotices.forEachIndexed { i, n ->
+                        ListItem(
+                            headlineContent = { Text(n.name) },
+                            supportingContent = { Text(n.author, style = MaterialTheme.typography.bodySmall, color = Palette.textDim) },
+                            trailingContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Tag(n.license)
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim)
+                                }
+                            },
+                            modifier = Modifier.clickable { open(n.url) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                        if (i != ossNotices.lastIndex) HorizontalDivider(color = Palette.outline)
+                    }
+                }
+            }
+        }
+        item {
+            Panel(padding = 0.dp) {
+                ListItem(
+                    headlineContent = { Text("Apache License 2.0") },
+                    supportingContent = { Text("apache.org/licenses/LICENSE-2.0", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null, tint = Palette.textDim) },
+                    modifier = Modifier.clickable { open("https://www.apache.org/licenses/LICENSE-2.0") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
+    }
 }
 
 private fun shareCsv(context: android.content.Context, file: File) {

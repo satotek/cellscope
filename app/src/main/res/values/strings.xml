@@ -213,4 +213,8 @@
     <string name="about_source">Source code</string>
     <string name="about_license">License</string>
     <string name="about_oss">Open-source licenses</string>
+    <string name="import_log">Import</string>
+    <string name="oss_map">Map data</string>
+    <string name="oss_libraries">Libraries</string>
+    <string name="oss_tile_policy">Tile usage policy</string>
 </resources>

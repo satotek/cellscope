@@ -196,4 +196,8 @@
     <string name="about_source">ソースコード</string>
     <string name="about_license">ライセンス</string>
     <string name="about_oss">オープンソースライセンス</string>
+    <string name="import_log">インポート</string>
+    <string name="oss_map">地図データ</string>
+    <string name="oss_libraries">ライブラリ</string>
+    <string name="oss_tile_policy">タイル利用ポリシー</string>
 </resources>

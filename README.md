@@ -117,9 +117,10 @@ More → ログ → タップで Replay: Signal タブと同じパネル（`Sign
 
 - **設定**: 計測 / 表示 / 無線 / 権限 / 記録 / AI — 1 グループ = 1 サブ画面（`SettingsScreen(section = …)` で絞る）
 - **データ**: ログ / スナップショット — **左スワイプで削除**（Gmail 式、スナックバーで元に戻す。実削除はスナックバーが消えてから）、
-  見出しに件数・合計サイズと「すべて削除」。タップで共有 / 再生、長押しでも削除できる
+  見出しに件数・合計サイズと「すべて削除」。タップで共有 / 再生、長押しでも削除できる。
+  ログは **インポート**（SAF、複数選択可。`.csv` / `.jsonl` を `logs/` にコピー、同名は `-1` 連番）で他端末のログも再生できる
 - Raw / **アプリ情報**（バージョン・端末・権限、作者 / ソース / ライセンス / OSS ライセンス。`AppInfo` に URL 等をまとめてある。
-  ライセンス本文は `assets/LICENSE`（ルートの `LICENSE` はそのシンボリックリンク）、第三者通知は `assets/THIRD_PARTY.md`）
+  ライセンス本文は `assets/LICENSE`（ルートの `LICENSE` はそのシンボリックリンク）。OSS 一覧は `ossNotices`（`MoreScreen.kt`）— ルートの `THIRD_PARTY.md` と同期させること）
 - **終了**: `vm.shutdown()` → `finishAndRemoveTask()` → プロセス kill。ホームに戻るだけでは計測が続く（オーバーレイ HUD のため）
 
 サブ画面は `BackHandler` で戻る（Navigation ライブラリ無し）。`FileProvider` authority は `dev.satotek.cellscope.files`。
