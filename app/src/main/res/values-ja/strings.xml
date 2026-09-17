@@ -159,4 +159,28 @@
     <string name="delete_all">すべて削除</string>
     <string name="deleted">削除しました</string>
     <string name="undo">元に戻す</string>
+
+    <string name="group_ai">AI</string>
+    <string name="ai_provider">プロバイダ</string>
+    <string name="ai_api_key">API キー</string>
+    <string name="ai_model">モデル</string>
+    <string name="ai_openai">OpenAI</string>
+    <string name="ai_gemini">Gemini</string>
+    <string name="ai_anthropic">Anthropic</string>
+    <string name="ai_ask">AI に聞く</string>
+    <string name="copy">コピー</string>
+    <string name="ai_digest_title">CellScope 計測要約</string>
+    <string name="ai_prompt">上記はスマートフォンで計測したセルラー回線の統計です。電波品質の傾向、ハンドオーバーやバンド切替の妥当性、CA の効き具合、改善余地（場所・設定・事業者側の要因）を、無線エンジニアの視点で簡潔に分析してください。数値の根拠を示し、推測は推測と明記してください。</string>
+    <string name="digest_period">期間: %1$s–%2$s (%3$s, %4$d samples)</string>
+    <string name="digest_device">端末: %1$s</string>
+    <string name="digest_operator">事業者: %1$s</string>
+    <string name="digest_camping">在圏</string>
+    <string name="digest_quality">品質 (serving)</string>
+    <string name="digest_nr_scc">NR SCC (NSA 時)</string>
+    <string name="digest_ca">CA</string>
+    <string name="digest_changes">セル変更 (%1$d)</string>
+    <string name="digest_throughput">スループット / RTT</string>
+    <string name="digest_neighbours">近隣セル (期間中に見えた上位 8)</string>
+    <string name="digest_median">中央値</string>
+    <string name="digest_avg">平均</string>
 </resources>

@@ -49,10 +49,13 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.satotek.cellscope.MainViewModel
+import dev.satotek.cellscope.data.ai.AiPrefs
+import dev.satotek.cellscope.data.ai.AiProvider
 import dev.satotek.cellscope.data.model.PrivilegeLevel
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.ui.components.InfoButton
@@ -312,6 +315,74 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
                         FilledTonalButton(onClick = { vm.probeRoot() }, shapes = ButtonDefaults.shapes(), contentPadding = ButtonDefaults.ExtraSmallContentPadding) {
                             Icon(Icons.Outlined.Refresh, null, Modifier.height(16.dp))
                         }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
+
+        // ---- AI ------------------------------------------------------------------------------------
+        item {
+            val context = LocalContext.current
+            var ai by remember { mutableStateOf(AiPrefs.load(context)) }
+            val providers = listOf(
+                AiProvider.OPENAI to R.string.ai_openai,
+                AiProvider.GEMINI to R.string.ai_gemini,
+                AiProvider.ANTHROPIC to R.string.ai_anthropic,
+            )
+            Group(stringResource(R.string.group_ai)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Text(stringResource(R.string.ai_provider), style = MaterialTheme.typography.bodyLarge, color = Palette.text)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+                        providers.forEachIndexed { i, (p, label) ->
+                            ToggleButton(
+                                checked = ai.provider == p,
+                                onCheckedChange = {
+                                    val next = if (ai.model.isBlank() || ai.model == ai.provider.defaultModel) {
+                                        ai.copy(provider = p, model = "")
+                                    } else ai.copy(provider = p)
+                                    ai = next
+                                    AiPrefs.save(context, next)
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp),
+                                shapes = when (i) {
+                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                    providers.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                },
+                            ) { Text(stringResource(label), fontSize = 11.sp, maxLines = 1, softWrap = false) }
+                        }
+                    }
+                }
+                HorizontalDivider(color = Palette.outline)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.ai_api_key)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            value = ai.apiKey,
+                            onValueChange = { v -> val next = ai.copy(apiKey = v); ai = next; AiPrefs.save(context, next) },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+                HorizontalDivider(color = Palette.outline)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.ai_model)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            value = ai.model,
+                            onValueChange = { v -> val next = ai.copy(model = v); ai = next; AiPrefs.save(context, next) },
+                            singleLine = true,
+                            placeholder = { Text(ai.provider.defaultModel, fontFamily = Mono, fontSize = 13.sp, color = Palette.textDim) },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                        )
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )

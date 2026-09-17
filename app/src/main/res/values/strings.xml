@@ -175,4 +175,29 @@
     <string name="delete_all">Delete all</string>
     <string name="deleted">Deleted</string>
     <string name="undo">Undo</string>
+
+    <!-- AI -->
+    <string name="group_ai">AI</string>
+    <string name="ai_provider">Provider</string>
+    <string name="ai_api_key">API key</string>
+    <string name="ai_model">Model</string>
+    <string name="ai_openai">OpenAI</string>
+    <string name="ai_gemini">Gemini</string>
+    <string name="ai_anthropic">Anthropic</string>
+    <string name="ai_ask">Ask AI</string>
+    <string name="copy">Copy</string>
+    <string name="ai_digest_title">CellScope measurement summary</string>
+    <string name="ai_prompt">The text above is cellular-link statistics measured on a smartphone. From a radio engineer’s point of view, briefly analyse signal-quality trends, whether handovers and band changes look reasonable, how well CA is working, and what could be improved (location, settings, or the operator). Cite the numbers; mark speculation as speculation.</string>
+    <string name="digest_period">Period: %1$s–%2$s (%3$s, %4$d samples)</string>
+    <string name="digest_device">device: %1$s</string>
+    <string name="digest_operator">operator: %1$s</string>
+    <string name="digest_camping">Camping</string>
+    <string name="digest_quality">Quality (serving)</string>
+    <string name="digest_nr_scc">NR SCC (NSA)</string>
+    <string name="digest_ca">CA</string>
+    <string name="digest_changes">Cell changes (%1$d)</string>
+    <string name="digest_throughput">Throughput / RTT</string>
+    <string name="digest_neighbours">Neighbours (top 8 in range)</string>
+    <string name="digest_median">median</string>
+    <string name="digest_avg">avg</string>
 </resources>

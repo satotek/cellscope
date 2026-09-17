@@ -143,6 +143,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                         fontFamily = Mono, fontSize = 13.sp, color = if (zoomed) Palette.accent else Palette.text,
                     )
                 }
+                AiDigestButton(h, events, range)
                 if (zoomed) {
                     TextButton(onClick = { clampView(dataStart, dataEnd) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.replay_all), fontFamily = Mono)
