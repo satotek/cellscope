@@ -156,4 +156,7 @@
     <string name="win_5m">5m</string>
     <string name="win_15m">15m</string>
     <string name="win_60m">60m</string>
+    <string name="delete_all">すべて削除</string>
+    <string name="deleted">削除しました</string>
+    <string name="undo">元に戻す</string>
 </resources>

@@ -172,4 +172,7 @@
     <string name="win_5m">5m</string>
     <string name="win_15m">15m</string>
     <string name="win_60m">60m</string>
+    <string name="delete_all">Delete all</string>
+    <string name="deleted">Deleted</string>
+    <string name="undo">Undo</string>
 </resources>

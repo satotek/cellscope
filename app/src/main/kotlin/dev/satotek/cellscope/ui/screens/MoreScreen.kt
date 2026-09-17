@@ -8,11 +8,14 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DataObject
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Description
@@ -40,9 +44,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -78,6 +92,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 private const val FILE_AUTHORITY = "dev.satotek.cellscope.files"
 
@@ -176,137 +192,222 @@ private fun SubScreen(title: String, onBack: () -> Unit, content: @Composable ()
 private fun LogsPane(onOpen: (File) -> Unit) {
     val context = LocalContext.current
     var gen by remember { mutableIntStateOf(0) }
-    val files = remember(gen) {
+    val all = remember(gen) {
         File(context.getExternalFilesDir(null), "logs").listFiles()
             ?.filter { it.isFile && it.name.endsWith(".csv", ignoreCase = true) }
             ?.sortedByDescending { it.lastModified() }
             .orEmpty()
     }
-    var pending by remember { mutableStateOf<File?>(null) }
+    val deletes = rememberPendingDeletes(delete = ::deleteLog, onDone = { gen++ })
+    val files = all.filter { it.absolutePath !in deletes.hidden }
     val fmtT = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) }
     val csvOnly = stringResource(R.string.log_csv_only)
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-        if (files.isEmpty()) {
-            item { Text("—", fontFamily = Mono, color = Palette.textDim) }
-        } else {
-            item {
-                Panel(padding = 0.dp) {
-                    files.forEachIndexed { i, f ->
-                        val jsonl = File(f.parentFile, f.nameWithoutExtension + ".jsonl")
-                        val kind = if (jsonl.isFile) "jsonl" else csvOnly
-                        ListItem(
-                            headlineContent = { Text(f.name, fontFamily = Mono, fontSize = 13.sp) },
-                            supportingContent = {
-                                Text(
-                                    "${fmtSize(f.length())} · ${fmtT.format(Date(f.lastModified()))} · $kind",
-                                    fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim,
-                                )
-                            },
-                            trailingContent = {
-                                IconButton(onClick = { shareCsv(context, f) }) {
-                                    Icon(Icons.Outlined.Share, stringResource(R.string.share), tint = Palette.textDim)
-                                }
-                            },
-                            modifier = Modifier.combinedClickable(
-                                onClick = { onOpen(f) },
-                                onLongClick = { pending = f },
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
-                        if (i != files.lastIndex) HorizontalDivider(color = Palette.outline)
-                    }
-                }
-            }
-        }
-    }
-    pending?.let { f ->
-        AlertDialog(
-            onDismissRequest = { pending = null },
-            title = { Text(stringResource(R.string.confirm_delete_log_title)) },
-            text = { Text(stringResource(R.string.confirm_delete_log_body, f.name), fontFamily = Mono) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        File(f.parentFile, f.nameWithoutExtension + ".jsonl").delete()
-                        f.delete()
-                        pending = null
-                        gen++
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(R.string.delete)) }
+    FileListScaffold(
+        files = files,
+        totalBytes = files.sumOf { it.length() + jsonlOf(it).length() },
+        deletes = deletes,
+        deleteAllTitle = stringResource(R.string.confirm_delete_log_title),
+    ) { f ->
+        val kind = if (jsonlOf(f).isFile) "jsonl" else csvOnly
+        ListItem(
+            headlineContent = { Text(f.name, fontFamily = Mono, fontSize = 13.sp) },
+            supportingContent = {
+                Text(
+                    "${fmtSize(f.length())} · ${fmtT.format(Date(f.lastModified()))} · $kind",
+                    fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim,
+                )
             },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text(stringResource(R.string.cancel)) } },
+            trailingContent = {
+                IconButton(onClick = { shareCsv(context, f) }) {
+                    Icon(Icons.Outlined.Share, stringResource(R.string.share), tint = Palette.textDim)
+                }
+            },
+            modifier = Modifier.combinedClickable(
+                onClick = { onOpen(f) },
+                onLongClick = { deletes.stage(f) },
+            ),
+            colors = ListItemDefaults.colors(containerColor = Palette.surface),
         )
     }
 }
+
+private fun jsonlOf(csv: File) = File(csv.parentFile, csv.nameWithoutExtension + ".jsonl")
+private fun deleteLog(csv: File) { jsonlOf(csv).delete(); csv.delete() }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SnapshotsPane() {
     val context = LocalContext.current
     var gen by remember { mutableIntStateOf(0) }
-    val files = remember(gen) { SnapshotWriter.listPng(context) }
-    var pending by remember { mutableStateOf<File?>(null) }
+    val all = remember(gen) { SnapshotWriter.listPng(context) }
+    val deletes = rememberPendingDeletes(delete = SnapshotWriter::delete, onDone = { gen++ })
+    val files = all.filter { it.absolutePath !in deletes.hidden }
     val fmtT = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-        if (files.isEmpty()) {
-            item { Text("—", fontFamily = Mono, color = Palette.textDim) }
-        } else {
+    FileListScaffold(
+        files = files,
+        totalBytes = files.sumOf { it.length() + SnapshotWriter.jsonFile(it).length() },
+        deletes = deletes,
+        deleteAllTitle = stringResource(R.string.confirm_delete_snapshot_title),
+    ) { f ->
+        val meta = remember(f) { snapshotMeta(f, fmtT) }
+        val thumb = remember(f) { decodeThumb(f) }
+        ListItem(
+            headlineContent = { Text(meta.time, fontFamily = Mono, fontSize = 13.sp) },
+            supportingContent = {
+                Text(meta.summary, fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
+            },
+            leadingContent = {
+                if (thumb != null) {
+                    Image(
+                        thumb.asImageBitmap(),
+                        null,
+                        Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            },
+            trailingContent = {
+                IconButton(onClick = { SnapshotWriter.shareJson(context, f) }) {
+                    Icon(Icons.Outlined.DataObject, "JSON", tint = Palette.textDim)
+                }
+            },
+            modifier = Modifier.combinedClickable(
+                onClick = { SnapshotWriter.share(context, f) },
+                onLongClick = { deletes.stage(f) },
+            ),
+            colors = ListItemDefaults.colors(containerColor = Palette.surface),
+        )
+    }
+}
+
+/**
+ * Gmail-style deletion: a swiped row leaves the list immediately, a snackbar offers undo, and the
+ * file is only unlinked once the snackbar is gone (or the pane is left with deletes still staged).
+ */
+private class PendingDeletes(
+    private val scope: CoroutineScope,
+    val snackbar: SnackbarHostState,
+    private val delete: (File) -> Unit,
+    private val onDone: () -> Unit,
+    private val deletedMsg: String,
+    private val undoLabel: String,
+) {
+    val hidden = mutableStateListOf<String>()
+
+    fun stage(f: File) {
+        if (f.absolutePath in hidden) return
+        hidden += f.absolutePath
+        scope.launch {
+            val r = snackbar.showSnackbar(deletedMsg, undoLabel, duration = SnackbarDuration.Short)
+            if (r == SnackbarResult.ActionPerformed) {
+                hidden -= f.absolutePath
+            } else if (f.absolutePath in hidden) {
+                commit(f)
+            }
+        }
+    }
+
+    fun commit(f: File) { delete(f); hidden -= f.absolutePath; onDone() }
+
+    fun deleteAll(files: List<File>) {
+        snackbar.currentSnackbarData?.dismiss()
+        files.forEach { delete(it) }
+        hidden.clear()
+        onDone()
+    }
+
+    fun flush() { hidden.map(::File).forEach(delete); hidden.clear() }
+}
+
+@Composable
+private fun rememberPendingDeletes(delete: (File) -> Unit, onDone: () -> Unit): PendingDeletes {
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    val deletedMsg = stringResource(R.string.deleted)
+    val undoLabel = stringResource(R.string.undo)
+    val pd = remember { PendingDeletes(scope, snackbar, delete, onDone, deletedMsg, undoLabel) }
+    // Leaving the pane cancels the snackbar coroutine, so staged deletes must be carried out here.
+    DisposableEffect(pd) { onDispose { pd.flush() } }
+    return pd
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun FileListScaffold(
+    files: List<File>,
+    totalBytes: Long,
+    deletes: PendingDeletes,
+    deleteAllTitle: String,
+    row: @Composable (File) -> Unit,
+) {
+    var confirmAll by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
             item {
-                Panel(padding = 0.dp) {
-                    files.forEachIndexed { i, f ->
-                        key(f.absolutePath) {
-                        val meta = remember(f) { snapshotMeta(f, fmtT) }
-                        val thumb = remember(f) { decodeThumb(f) }
-                        ListItem(
-                            headlineContent = { Text(meta.time, fontFamily = Mono, fontSize = 13.sp) },
-                            supportingContent = {
-                                Text(meta.summary, fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
-                            },
-                            leadingContent = {
-                                if (thumb != null) {
-                                    Image(
-                                        thumb.asImageBitmap(),
-                                        null,
-                                        Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                }
-                            },
-                            trailingContent = {
-                                IconButton(onClick = { SnapshotWriter.shareJson(context, f) }) {
-                                    Icon(Icons.Outlined.DataObject, "JSON", tint = Palette.textDim)
-                                }
-                            },
-                            modifier = Modifier.combinedClickable(
-                                onClick = { SnapshotWriter.share(context, f) },
-                                onLongClick = { pending = f },
-                            ),
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
-                        if (i != files.lastIndex) HorizontalDivider(color = Palette.outline)
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("${files.size} · ${fmtSize(totalBytes)}", fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
+                    if (files.isNotEmpty()) {
+                        TextButton(onClick = { confirmAll = true }) {
+                            Text(stringResource(R.string.delete_all), color = Palette.poor)
+                        }
+                    }
+                }
+            }
+            if (files.isEmpty()) {
+                item { Text("—", fontFamily = Mono, color = Palette.textDim) }
+            } else {
+                item {
+                    Panel(padding = 0.dp) {
+                        files.forEachIndexed { i, f ->
+                            key(f.absolutePath) {
+                                SwipeToDelete(onDelete = { deletes.stage(f) }) { row(f) }
+                                if (i != files.lastIndex) HorizontalDivider(color = Palette.outline)
+                            }
                         }
                     }
                 }
             }
         }
+        SnackbarHost(deletes.snackbar, Modifier.align(Alignment.BottomCenter))
     }
-    pending?.let { f ->
+    if (confirmAll) {
         AlertDialog(
-            onDismissRequest = { pending = null },
-            title = { Text(stringResource(R.string.confirm_delete_snapshot_title)) },
-            text = { Text(stringResource(R.string.confirm_delete_log_body, f.name), fontFamily = Mono) },
+            onDismissRequest = { confirmAll = false },
+            title = { Text(deleteAllTitle) },
+            text = { Text("${files.size} · ${fmtSize(totalBytes)}", fontFamily = Mono) },
             confirmButton = {
                 Button(
-                    onClick = { SnapshotWriter.delete(f); pending = null; gen++ },
+                    onClick = { confirmAll = false; deletes.deleteAll(files) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Palette.poor),
                     shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(R.string.delete)) }
+                ) { Text(stringResource(R.string.delete_all)) }
             },
-            dismissButton = { TextButton(onClick = { pending = null }) { Text(stringResource(R.string.cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmAll = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
+}
+
+/** End-to-start swipe reveals a red bin; the row itself is opaque so it covers the background while at rest. */
+@Composable
+private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState(positionalThreshold = { it * 0.45f })
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        onDismiss = { if (it == SwipeToDismissBoxValue.EndToStart) onDelete() },
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().background(Palette.poor).padding(end = 24.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) { Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = Color.White) }
+        },
+    ) { content() }
 }
 
 private data class SnapshotMeta(val time: String, val summary: String)
