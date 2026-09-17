@@ -23,6 +23,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import dev.satotek.cellscope.ui.CellScopeRoot
 import dev.satotek.cellscope.ui.theme.CellScopeTheme
+import dev.satotek.cellscope.ui.theme.isDarkFor
+import androidx.compose.runtime.SideEffect
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -55,7 +59,16 @@ class MainActivity : ComponentActivity() {
         inPip.value = isInPictureInPictureMode
         registerReceiver(pipCycleReceiver, IntentFilter(ACTION_PIP_CYCLE), RECEIVER_NOT_EXPORTED)
         setContent {
-            CellScopeTheme {
+            val themeMode = vm.themeMode.collectAsStateWithLifecycle().value
+            val dark = isDarkFor(themeMode)
+            // enableEdgeToEdge() picked icon colours from the system theme; a forced app theme must re-pick.
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+            CellScopeTheme(darkTheme = dark) {
                 CellScopeRoot(
                     vm,
                     onRequestPermissions = ::requestPerms,

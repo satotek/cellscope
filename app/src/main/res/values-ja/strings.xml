@@ -183,4 +183,10 @@
     <string name="digest_neighbours">近隣セル (期間中に見えた上位 8)</string>
     <string name="digest_median">中央値</string>
     <string name="digest_avg">平均</string>
+    <string name="theme">テーマ</string>
+    <string name="theme_system">システム</string>
+    <string name="theme_light">ライト</string>
+    <string name="theme_dark">ダーク</string>
+    <string name="language">言語</string>
+    <string name="lang_system">システム</string>
 </resources>

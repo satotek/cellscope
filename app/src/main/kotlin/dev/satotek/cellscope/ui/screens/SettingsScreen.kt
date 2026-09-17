@@ -45,7 +45,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import android.app.LocaleManager
 import android.content.Intent
+import android.os.LocaleList
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.ui.text.font.FontFamily
@@ -161,6 +163,24 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         item {
             val context = LocalContext.current
             Group(stringResource(R.string.group_display)) {
+                val themeMode by vm.themeMode.collectAsStateWithLifecycle()
+                SegmentRow(
+                    title = stringResource(R.string.theme),
+                    choices = listOf("system" to stringResource(R.string.theme_system), "light" to stringResource(R.string.theme_light), "dark" to stringResource(R.string.theme_dark)),
+                    selected = themeMode,
+                    onSelect = { vm.setThemeMode(it) },
+                )
+                HorizontalDivider(color = Palette.outline)
+                // Per-app locale (API 33+): setting it recreates the activity, so no state of our own.
+                val localeManager = context.getSystemService(LocaleManager::class.java)
+                val currentLang = localeManager.applicationLocales.let { if (it.isEmpty) "" else it[0].language }
+                SegmentRow(
+                    title = stringResource(R.string.language),
+                    choices = listOf("" to stringResource(R.string.lang_system), "ja" to "日本語", "en" to "English"),
+                    selected = currentLang,
+                    onSelect = { localeManager.applicationLocales = if (it.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(it) },
+                )
+                HorizontalDivider(color = Palette.outline)
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.pip_auto)) },
                     trailingContent = {
@@ -435,6 +455,28 @@ private fun ConfirmDialog(kind: String, onDismiss: () -> Unit, onConfirm: () -> 
         confirmButton = { Button(onClick = { onConfirm(); onDismiss() }, shapes = ButtonDefaults.shapes()) { Text(action) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** Title on the left, a connected toggle group on the right — same look as the gNB-bits picker. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SegmentRow(title: String, choices: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, color = Palette.text)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+            choices.forEachIndexed { i, (id, label) ->
+                ToggleButton(
+                    checked = selected == id, onCheckedChange = { if (selected != id) onSelect(id) }, modifier = Modifier.weight(1f),
+                    shapes = when (i) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        choices.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                ) { Text(label, fontSize = 12.sp, maxLines = 1) }
+            }
+        }
+    }
 }
 
 @Composable

@@ -133,6 +133,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setPingEnabled(on: Boolean) { _pingEnabled.value = on; prefs.edit().putBoolean("ping_on", on).apply(); if (on) startPing() else { pingJob?.cancel(); lastRtt = null } }
 
     /** Home gesture enters PiP. Default on; the header icon still works when this is off. */
+    /** "system" | "light" | "dark" — read by every CellScopeTheme host (activity, overlay). */
+    private val _themeMode = MutableStateFlow(prefs.getString("theme", "system") ?: "system")
+    val themeMode: StateFlow<String> = _themeMode
+    fun setThemeMode(mode: String) { _themeMode.value = mode; prefs.edit().putString("theme", mode).apply() }
+
     private val _pipAuto = MutableStateFlow(prefs.getBoolean("pip_auto", true))
     val pipAuto: StateFlow<Boolean> = _pipAuto
     fun setPipAuto(on: Boolean) { _pipAuto.value = on; prefs.edit().putBoolean("pip_auto", on).apply() }

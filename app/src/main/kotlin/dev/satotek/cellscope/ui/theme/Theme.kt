@@ -66,6 +66,10 @@ private val typography = Typography().let { t ->
     )
 }
 
+/** Resolves the Settings theme mode to a dark flag; anything but "light"/"dark" follows the system. */
+@Composable
+fun isDarkFor(mode: String): Boolean = when (mode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CellScopeTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {

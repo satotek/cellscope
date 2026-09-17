@@ -200,4 +200,10 @@
     <string name="digest_neighbours">Neighbours (top 8 in range)</string>
     <string name="digest_median">median</string>
     <string name="digest_avg">avg</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language">Language</string>
+    <string name="lang_system">System</string>
 </resources>

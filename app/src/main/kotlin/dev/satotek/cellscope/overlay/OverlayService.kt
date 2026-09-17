@@ -35,6 +35,7 @@ import dev.satotek.cellscope.MainActivity
 import dev.satotek.cellscope.R
 import dev.satotek.cellscope.ui.screens.PipHud
 import dev.satotek.cellscope.ui.theme.CellScopeTheme
+import dev.satotek.cellscope.ui.theme.isDarkFor
 import kotlin.math.hypot
 
 /** Draggable TYPE_APPLICATION_OVERLAY HUD. Survives Home; closed from the X or Setup. */
@@ -100,7 +101,8 @@ class OverlayService : Service() {
             setContent {
                 val s = vm.state.collectAsStateWithLifecycle().value
                 val page = vm.hudPage.collectAsStateWithLifecycle().value
-                CellScopeTheme { PipHud(s, page) }
+                val themeMode = vm.themeMode.collectAsStateWithLifecycle().value
+                CellScopeTheme(darkTheme = isDarkFor(themeMode)) { PipHud(s, page) }
             }
         }
         val frame = FrameLayout(this)
