@@ -7,3 +7,4 @@ ksu-module/system/priv-app/CellScope/*.apk
 *.iml
 .DS_Store
 .kotlin/
+docs/screenshots/
