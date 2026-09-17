@@ -72,7 +72,8 @@ import dev.satotek.cellscope.ui.theme.Palette
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
+/** [section] narrows the page to one group (no group header, the sub-screen title carries it); null = everything. */
+fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true, section: String? = null) {
     val interval by vm.pollIntervalMs.collectAsStateWithLifecycle()
     val host by vm.pingHost.collectAsStateWithLifecycle()
     val gnbBits by vm.gnbBits.collectAsStateWithLifecycle()
@@ -100,7 +101,7 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         if (showTitle) item { Text(stringResource(R.string.more_setup), style = MaterialTheme.typography.headlineMedium, color = Palette.text) }
 
         // ---- status strip ------------------------------------------------------------------
-        item {
+        if (section == null || section == "privilege") item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Tag(stringResource(s.privilege.labelRes), when (s.privilege) { PrivilegeLevel.PRIV_APP -> Palette.nr; PrivilegeLevel.ROOT -> Palette.lte; else -> Palette.textDim })
                 Tag(if (s.permissionsGranted) stringResource(R.string.status_perm_ok) else stringResource(R.string.status_perm_missing), if (s.permissionsGranted) Palette.nr else Palette.poor)
@@ -110,8 +111,8 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         }
 
         // ---- measurement ---------------------------------------------------------------------
-        item {
-            Group(stringResource(R.string.group_measure)) {
+        if (section == null || section == "measure") item {
+            Group(stringResource(R.string.group_measure), showTitle = section == null) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.poll_interval), style = MaterialTheme.typography.bodyLarge, color = Palette.text)
@@ -160,9 +161,9 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
             }
         }
 
-        item {
+        if (section == null || section == "display") item {
             val context = LocalContext.current
-            Group(stringResource(R.string.group_display)) {
+            Group(stringResource(R.string.group_display), showTitle = section == null) {
                 val themeMode by vm.themeMode.collectAsStateWithLifecycle()
                 SegmentRow(
                     title = stringResource(R.string.theme),
@@ -214,10 +215,10 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         }
 
         // ---- radio: RAT lock (priv-app) + connectivity toggles (root) ------------------------------
-        item {
+        if (section == null || section == "radio") item {
             val isPriv = s.privilege == PrivilegeLevel.PRIV_APP
             val hasRoot = s.root.available == true
-            Group(stringResource(R.string.group_radio)) {
+            Group(stringResource(R.string.group_radio), showTitle = section == null) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -276,8 +277,8 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         }
 
         // ---- privilege ---------------------------------------------------------------------------
-        item {
-            Group(stringResource(R.string.group_privilege)) {
+        if (section == null || section == "privilege") item {
+            Group(stringResource(R.string.group_privilege), showTitle = section == null) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.root_mode)) },
                     
@@ -342,7 +343,7 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         }
 
         // ---- AI ------------------------------------------------------------------------------------
-        item {
+        if (section == null || section == "ai") item {
             val context = LocalContext.current
             var ai by remember { mutableStateOf(AiPrefs.load(context)) }
             val providers = listOf(
@@ -350,7 +351,7 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
                 AiProvider.GEMINI to R.string.ai_gemini,
                 AiProvider.ANTHROPIC to R.string.ai_anthropic,
             )
-            Group(stringResource(R.string.group_ai)) {
+            Group(stringResource(R.string.group_ai), showTitle = section == null) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Text(stringResource(R.string.ai_provider), style = MaterialTheme.typography.bodyLarge, color = Palette.text)
                     Spacer(Modifier.height(8.dp))
@@ -410,8 +411,8 @@ fun SettingsScreen(vm: MainViewModel, s: Snapshot, showTitle: Boolean = true) {
         }
 
         // ---- recording -----------------------------------------------------------------------------
-        item {
-            Group(stringResource(R.string.group_record)) {
+        if (section == null || section == "record") item {
+            Group(stringResource(R.string.group_record), showTitle = section == null) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.csv_log)) },
                     supportingContent = { Text(if (recording) vm.logFile?.name ?: stringResource(R.string.csv_recording) else stringResource(R.string.csv_stopped), color = if (recording) Palette.nr else Palette.textDim, fontFamily = Mono, fontSize = 12.sp) },
@@ -480,9 +481,9 @@ private fun SegmentRow(title: String, choices: List<Pair<String, String>>, selec
 }
 
 @Composable
-private fun Group(title: String, content: @Composable () -> Unit) {
+private fun Group(title: String, showTitle: Boolean = true, content: @Composable () -> Unit) {
     Column {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+        if (showTitle) Text(title, style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
         Panel(padding = 0.dp) { content() }
     }
 }

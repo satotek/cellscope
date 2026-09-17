@@ -190,4 +190,5 @@
     <string name="language">言語</string>
     <string name="lang_system">システム</string>
     <string name="ai_attach_log">ログファイルを添付</string>
+    <string name="more_data">データ</string>
 </resources>

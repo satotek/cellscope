@@ -24,7 +24,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.DataObject
+import androidx.compose.material.icons.outlined.FiberManualRecord
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material.icons.outlined.Speed
+import androidx.annotation.StringRes
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
@@ -32,7 +40,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -100,15 +107,21 @@ private const val FILE_AUTHORITY = "dev.satotek.cellscope.files"
 @Composable
 fun MoreScreen(vm: MainViewModel, state: Snapshot, onExit: () -> Unit = {}) {
     val privApp by vm.privApp.collectAsStateWithLifecycle()
-    MoreScreen(state, privApp, setup = { SettingsScreen(vm, state, showTitle = false) }, onExit = onExit)
+    MoreScreen(state, privApp, setup = { sec -> SettingsScreen(vm, state, showTitle = false, section = sec) }, onExit = onExit)
 }
 
 @Composable
-fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Composable () -> Unit = {}, onExit: () -> Unit = {}) {
+fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Composable (String) -> Unit = {}, onExit: () -> Unit = {}) {
     var sub by rememberSaveable { mutableStateOf<String?>(null) }
     var replayPath by rememberSaveable { mutableStateOf<String?>(null) }
-    when (sub) {
-        "setup" -> SubScreen(stringResource(R.string.more_setup), onBack = { sub = null }, content = setup)
+    val s = sub
+    when {
+        s == null -> MoreHome(onOpen = { sub = it }, onExit = onExit)
+        s.startsWith("set:") -> {
+            val sec = s.removePrefix("set:")
+            SubScreen(stringResource(settingsSections.first { it.id == sec }.title), onBack = { sub = null }) { setup(sec) }
+        }
+        else -> when (s) {
         "raw" -> SubScreen(stringResource(R.string.more_raw), onBack = { sub = null }) { RawScreen(state, showTitle = false) }
         "logs" -> {
             val rf = replayPath
@@ -123,38 +136,41 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
         "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp) }
         else -> MoreHome(onOpen = { sub = it }, onExit = onExit)
+        }
     }
 }
+
+private data class MoreRow(val id: String, @param:StringRes val title: Int, val icon: ImageVector)
+
+/** One row per Settings group; the id after "set:" is what SettingsScreen filters on. */
+private val settingsSections = listOf(
+    MoreRow("measure", R.string.group_measure, Icons.Outlined.Speed),
+    MoreRow("display", R.string.group_display, Icons.Outlined.Palette),
+    MoreRow("radio", R.string.group_radio, Icons.Outlined.CellTower),
+    MoreRow("privilege", R.string.group_privilege, Icons.Outlined.Security),
+    MoreRow("record", R.string.group_record, Icons.Outlined.FiberManualRecord),
+    MoreRow("ai", R.string.group_ai, Icons.Outlined.AutoAwesome),
+)
+private val dataRows = listOf(
+    MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
+    MoreRow("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
+)
+private val miscRows = listOf(
+    MoreRow("raw", R.string.more_raw, Icons.Outlined.Terminal),
+    MoreRow("about", R.string.more_about, Icons.Outlined.Info),
+)
 
 @Composable
 private fun MoreHome(onOpen: (String) -> Unit, onExit: () -> Unit) {
     var confirmExit by remember { mutableStateOf(false) }
-    val rows = listOf(
-        Triple("setup", R.string.more_setup, Icons.Outlined.Settings),
-        Triple("raw", R.string.more_raw, Icons.Outlined.Terminal),
-        Triple("logs", R.string.more_logs, Icons.Outlined.Description),
-        Triple("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
-        Triple("about", R.string.more_about, Icons.Outlined.Info),
-    )
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
-        item { Text(stringResource(R.string.tab_more), style = MaterialTheme.typography.headlineMedium, color = Palette.text, modifier = Modifier.padding(bottom = 12.dp)) }
-        item {
-            Panel(padding = 0.dp) {
-                rows.forEachIndexed { i, (id, title, icon) ->
-                    ListItem(
-                        headlineContent = { Text(stringResource(title)) },
-                        leadingContent = { Icon(icon, null, tint = Palette.textDim) },
-                        trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Palette.textDim) },
-                        modifier = Modifier.clickable { onOpen(id) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    )
-                    if (i != rows.lastIndex) HorizontalDivider(color = Palette.outline)
-                }
-            }
-        }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Text(stringResource(R.string.tab_more), style = MaterialTheme.typography.headlineMedium, color = Palette.text) }
+        item { RowGroup(stringResource(R.string.more_setup), settingsSections) { onOpen("set:$it") } }
+        item { RowGroup(stringResource(R.string.more_data), dataRows, onOpen) }
+        item { RowGroup(null, miscRows, onOpen) }
         item {
             // Exit: the ViewModel is process-wide, so leaving via Home keeps polling; this actually stops it.
-            Panel(padding = 0.dp, modifier = Modifier.padding(top = 12.dp)) {
+            Panel(padding = 0.dp) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.exit_app), color = Palette.poor) },
                     leadingContent = { Icon(Icons.AutoMirrored.Outlined.Logout, null, tint = Palette.poor) },
@@ -172,6 +188,25 @@ private fun MoreHome(onOpen: (String) -> Unit, onExit: () -> Unit) {
             confirmButton = { Button(onClick = { confirmExit = false; onExit() }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.exit_app)) } },
             dismissButton = { TextButton(onClick = { confirmExit = false }) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+}
+
+@Composable
+private fun RowGroup(title: String?, rows: List<MoreRow>, onOpen: (String) -> Unit) {
+    Column {
+        if (title != null) Text(title, style = MaterialTheme.typography.labelLarge, color = Palette.accent, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+        Panel(padding = 0.dp) {
+            rows.forEachIndexed { i, r ->
+                ListItem(
+                    headlineContent = { Text(stringResource(r.title)) },
+                    leadingContent = { Icon(r.icon, null, tint = Palette.textDim) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Palette.textDim) },
+                    modifier = Modifier.clickable { onOpen(r.id) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+                if (i != rows.lastIndex) HorizontalDivider(color = Palette.outline)
+            }
+        }
     }
 }
 
