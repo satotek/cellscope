@@ -76,19 +76,19 @@ fun ReplayScreen(file: File) {
     when {
         error != null -> Text(error!!, fontFamily = Mono, color = Palette.poor, modifier = Modifier.padding(16.dp))
         data == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
-        else -> ReplayBody(data!!, file.name)
+        else -> ReplayBody(data!!, file.name, file)
     }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ReplayScreen(data: ReplayData, fileName: String) {
-    ReplayBody(data, fileName)
+    ReplayBody(data, fileName, null)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ReplayBody(data: ReplayData, fileName: String) {
+private fun ReplayBody(data: ReplayData, fileName: String, logFile: File?) {
     val h = data.samples
     val events = data.events
     val dataStart = h.firstOrNull()?.t ?: 0L
@@ -143,7 +143,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                         fontFamily = Mono, fontSize = 13.sp, color = if (zoomed) Palette.accent else Palette.text,
                     )
                 }
-                AiDigestButton(h, events, range)
+                AiDigestButton(h, events, range, logFile)
                 if (zoomed) {
                     TextButton(onClick = { clampView(dataStart, dataEnd) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.replay_all), fontFamily = Mono)

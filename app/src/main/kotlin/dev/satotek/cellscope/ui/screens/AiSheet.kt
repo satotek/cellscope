@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -47,16 +49,17 @@ import dev.satotek.cellscope.data.model.SignalSample
 import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Locale
 
 @Composable
-fun AiDigestButton(samples: List<SignalSample>, events: List<CellEvent>, range: LongRange) {
+fun AiDigestButton(samples: List<SignalSample>, events: List<CellEvent>, range: LongRange, logFile: File? = null) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
         Icon(Icons.Outlined.AutoAwesome, stringResource(R.string.ai_ask), tint = Palette.text)
     }
     if (open) {
-        AiDigestSheet(samples, events, range, onDismiss = { open = false })
+        AiDigestSheet(samples, events, range, logFile, onDismiss = { open = false })
     }
 }
 
@@ -73,6 +76,7 @@ private fun AiDigestSheet(
     samples: List<SignalSample>,
     events: List<CellEvent>,
     range: LongRange,
+    logFile: File?,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -82,6 +86,8 @@ private fun AiDigestSheet(
     }
     val hasKey = remember { AiPrefs.hasKey(context) }
     var phase by remember { mutableStateOf<AiPhase>(AiPhase.Preview) }
+    var attach by remember { mutableStateOf(false) }
+    val attachment = logFile?.takeIf { attach && it.isFile }
     val scope = rememberCoroutineScope()
     val shown = when (val p = phase) {
         is AiPhase.Answer -> p.text
@@ -111,10 +117,23 @@ private fun AiDigestSheet(
                     modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
                 )
             }
+            if (logFile != null && logFile.isFile) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    Modifier.fillMaxWidth().clickable { attach = !attach },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = attach, onCheckedChange = { attach = it })
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.ai_attach_log), color = Palette.text)
+                        Text("${logFile.name} · ${logFile.length() / 1024} KB", fontFamily = Mono, fontSize = 11.sp, color = Palette.textDim)
+                    }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Button(
-                    onClick = { AiShare.share(context, shown) },
+                    onClick = { AiShare.share(context, shown, attachment) },
                     shapes = ButtonDefaults.shapes(),
                     enabled = phase !is AiPhase.Loading,
                 ) { Text(stringResource(R.string.share)) }
@@ -128,7 +147,7 @@ private fun AiDigestSheet(
                         onClick = {
                             phase = AiPhase.Loading
                             scope.launch {
-                                val result = AiClient(context).ask(digest)
+                                val result = AiClient(context).ask(digest, attachment)
                                 phase = result.fold(
                                     onSuccess = { AiPhase.Answer(it) },
                                     onFailure = { AiPhase.Error(it.message ?: "failed") },

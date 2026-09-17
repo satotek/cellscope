@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.sp
 import dev.satotek.cellscope.R
+import java.io.File
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.data.stats.BandShare
 import dev.satotek.cellscope.data.stats.DistBin
@@ -66,7 +67,7 @@ private val windows = listOf(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun StatsScreen(s: Snapshot) {
+fun StatsScreen(s: Snapshot, logFile: File? = null) {
     var win by rememberSaveable { mutableIntStateOf(1) }
     val windowMs = windows[win].second
     val lastT = s.history.lastOrNull()?.t ?: 0L
@@ -84,7 +85,7 @@ fun StatsScreen(s: Snapshot) {
                             style = MaterialTheme.typography.bodySmall, color = Palette.textDim,
                         )
                     }
-                    AiDigestButton(s.history, s.events, range)
+                    AiDigestButton(s.history, s.events, range, logFile)
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {

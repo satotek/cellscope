@@ -150,7 +150,7 @@ fun CellScopeRoot(
                     )
                     Tab.CELLS -> CellsScreen(state)
                     Tab.SIGNAL -> SignalScreen(state)
-                    Tab.STATS -> StatsScreen(state)
+                    Tab.STATS -> StatsScreen(state, logFile = if (recording) vm.logFile else null)
                     Tab.MORE -> MoreScreen(vm, state, onExit = onExit)
                 }
             }

@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -12,16 +13,28 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 class AiClient(private val context: Context) {
-    suspend fun ask(digest: String): Result<String> = withContext(Dispatchers.IO) {
+    private companion object { const val MAX_CSV_CHARS = 150_000 }
+
+    suspend fun ask(digest: String, attachment: File? = null): Result<String> = withContext(Dispatchers.IO) {
         val cfg = AiPrefs.load(context)
         if (!cfg.hasKey) return@withContext Result.failure(IOException("no API key"))
+        val prompt = if (attachment == null) digest else digest + "\n\n## CSV (" + attachment.name + ")\n```csv\n" + csvTail(attachment) + "\n```"
         runCatching {
             when (cfg.provider) {
-                AiProvider.OPENAI -> openai(cfg, digest)
-                AiProvider.GEMINI -> gemini(cfg, digest)
-                AiProvider.ANTHROPIC -> anthropic(cfg, digest)
+                AiProvider.OPENAI -> openai(cfg, prompt)
+                AiProvider.GEMINI -> gemini(cfg, prompt)
+                AiProvider.ANTHROPIC -> anthropic(cfg, prompt)
             }
         }
+    }
+
+    /** Header line plus the newest rows that fit in [MAX_CSV_CHARS] — enough for an hour at 1 s without blowing the context. */
+    private fun csvTail(f: File): String {
+        val text = f.readText()
+        if (text.length <= MAX_CSV_CHARS) return text.trimEnd()
+        val header = text.lineSequence().firstOrNull().orEmpty()
+        val tail = text.substring(text.length - MAX_CSV_CHARS).substringAfter('\n')
+        return header + "\n…\n" + tail.trimEnd()
     }
 
     private fun openai(cfg: AiConfig, digest: String): String {

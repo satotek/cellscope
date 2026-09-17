@@ -174,7 +174,7 @@
     <string name="digest_period">期間: %1$s–%2$s (%3$s, %4$d samples)</string>
     <string name="digest_device">端末: %1$s</string>
     <string name="digest_operator">事業者: %1$s</string>
-    <string name="digest_camping">在圏</string>
+    <string name="digest_camping">接続バンド</string>
     <string name="digest_quality">品質 (serving)</string>
     <string name="digest_nr_scc">NR SCC (NSA 時)</string>
     <string name="digest_ca">CA</string>
@@ -189,4 +189,5 @@
     <string name="theme_dark">ダーク</string>
     <string name="language">言語</string>
     <string name="lang_system">システム</string>
+    <string name="ai_attach_log">ログファイルを添付</string>
 </resources>
