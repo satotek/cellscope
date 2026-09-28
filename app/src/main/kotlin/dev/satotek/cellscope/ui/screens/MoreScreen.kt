@@ -15,6 +15,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.FileOpen
+import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -53,6 +54,8 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -100,6 +103,7 @@ import dev.satotek.cellscope.data.model.PrivilegeLevel
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.data.snapshot.SnapshotWriter
 import dev.satotek.cellscope.data.speed.SpeedResult
+import dev.satotek.cellscope.data.backup.BackupArchive
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
@@ -113,7 +117,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val FILE_AUTHORITY = "dev.satotek.cellscope.files"
 
@@ -151,6 +157,7 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         "speed" -> SubScreen(stringResource(R.string.more_speed), onBack = { sub = null }) {
             if (vm != null) SpeedHistoryPane(vm, speedResults) else Text("—", fontFamily = Mono, color = Palette.textDim, modifier = Modifier.padding(16.dp))
         }
+        "backup" -> SubScreen(stringResource(R.string.more_backup), onBack = { sub = null }) { BackupPane(vm) }
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
         "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp, onOpen = { sub = it }) }
         "license" -> SubScreen(stringResource(R.string.about_license), onBack = { sub = "about" }) { AssetTextPane("LICENSE") }
@@ -175,6 +182,7 @@ private val dataRows = listOf(
     MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
     MoreRow("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
     MoreRow("speed", R.string.more_speed, Icons.Outlined.Speed),
+    MoreRow("backup", R.string.more_backup, Icons.Outlined.Backup),
 )
 private val miscRows = listOf(
     MoreRow("raw", R.string.more_raw, Icons.Outlined.Terminal),
@@ -315,6 +323,97 @@ private fun importLog(context: android.content.Context, uri: Uri, dir: File) {
     context.contentResolver.openInputStream(uri)?.use { inp -> target.outputStream().use { inp.copyTo(it) } }
 }
 private fun deleteLog(csv: File) { jsonlOf(csv).delete(); csv.delete() }
+
+/**
+ * Export / restore of everything the app owns, through SAF so the archive lands outside the
+ * app sandbox — the one place uninstalling does not reach.
+ */
+@Composable
+private fun BackupPane(vm: MainViewModel?) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var restoreSettings by rememberSaveable { mutableStateOf(true) }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    fun fail(t: Throwable) = context.getString(R.string.backup_failed, t.message ?: t.javaClass.simpleName)
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BackupArchive.MIME)) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        busy = true; message = null
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    val out = context.contentResolver.openOutputStream(uri) ?: error("openOutputStream")
+                    out.use { BackupArchive.export(context, it) }
+                }
+            }
+            busy = false
+            message = r.fold({ context.getString(R.string.backup_exported, it.logs, it.snapshots) }, ::fail)
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        busy = true; message = null
+        val withSettings = restoreSettings
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    val inp = context.contentResolver.openInputStream(uri) ?: error("openInputStream")
+                    inp.use { BackupArchive.import(context, it, withSettings) }
+                }
+            }
+            busy = false
+            r.onSuccess { if (it.settings) vm?.reloadPrefs() }
+            message = r.fold({ c ->
+                context.getString(R.string.backup_imported, c.logs, c.snapshots) +
+                    if (c.skipped > 0) " · " + context.getString(R.string.backup_skipped, c.skipped) else ""
+            }, ::fail)
+        }
+    }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Panel {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.backup_desc), fontSize = 13.sp, color = Palette.textDim)
+                Text(stringResource(R.string.backup_secrets), fontSize = 12.sp, color = Palette.accent)
+            }
+        }
+        Button(
+            onClick = { exportLauncher.launch(BackupArchive.suggestedName()) },
+            enabled = !busy,
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Outlined.Backup, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.backup_export))
+        }
+        Panel(padding = 0.dp) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.backup_restore_settings)) },
+                trailingContent = { Checkbox(checked = restoreSettings, onCheckedChange = { restoreSettings = it }) },
+                modifier = Modifier.clickable { restoreSettings = !restoreSettings },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+        OutlinedButton(
+            onClick = { importLauncher.launch(arrayOf(BackupArchive.MIME, "application/octet-stream")) },
+            enabled = !busy,
+            shapes = ButtonDefaults.shapes(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Outlined.FileOpen, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.backup_import))
+        }
+        val note = if (busy) stringResource(R.string.backup_working) else message
+        if (note != null) Text(note, fontFamily = Mono, fontSize = 12.sp, color = Palette.textDim)
+    }
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

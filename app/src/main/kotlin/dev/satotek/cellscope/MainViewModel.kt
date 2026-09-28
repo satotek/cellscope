@@ -314,6 +314,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repo.refresh() }
     }
 
+    /**
+     * A restored backup rewrites the prefs file underneath the StateFlows, which were seeded
+     * once in the constructor. Push every value back through the normal setters so their side
+     * effects run too (polling cadence, ping job, NCI split, overlay service).
+     */
+    fun reloadPrefs() {
+        setPollInterval(prefs.getLong("poll_ms", 1000L))
+        setPingHost(prefs.getString("ping_host", null) ?: "1.1.1.1")
+        setPingEnabled(prefs.getBoolean("ping_on", true))
+        setSpeedServer(prefs.getString("speed_server", "") ?: "")
+        setThemeMode(prefs.getString("theme", "system") ?: "system")
+        setPipAuto(prefs.getBoolean("pip_auto", true))
+        setGnbBits(prefs.getInt("gnb_bits", 24))
+        _speedResults.value = loadSpeedResults()
+        reconcileOverlay()   // permission-gated: never start the service blindly
+    }
+
     private fun startPing() {
         pingJob?.cancel()
         pingJob = viewModelScope.launch {
