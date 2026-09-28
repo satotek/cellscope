@@ -171,9 +171,7 @@ object Ndt7Client {
         val opened = CompletableDeferred<WebSocket>()
         val failed = AtomicReference<Throwable?>(null)
         val localBytes = AtomicLong(0)
-        val localAt2s = AtomicLong(-1)
         val serverBytes = AtomicLong(0)
-        val serverAt2s = AtomicLong(-1)
         val minRtt = AtomicReference<Double?>(null)
 
         val req = Request.Builder()
@@ -199,29 +197,37 @@ object Ndt7Client {
             withTimeout(15_000) { opened.await() }
             val t0 = System.nanoTime()
             fun elapsed() = (System.nanoTime() - t0) / 1_000_000L
-            // 1 s rolling window for the "current" rate; the headline uses the
-            // same 2–10 s average as the final result so the number does not jump 40↔0.
-            var rollBytes = 0L
-            var rollT = t0
+            // Bytes actually on the wire. Download: what we received. Upload: the server's TCPInfo
+            // count is authoritative; until it arrives, subtract OkHttp's send queue from what we
+            // enqueued, otherwise up to 8 MiB of queued-but-unsent data would inflate the number.
+            fun wired(): Long = if (!upload) localBytes.get() else {
+                val sb = serverBytes.get()
+                if (sb > 0) sb else (localBytes.get() - ws.queueSize()).coerceAtLeast(0)
+            }
+            var at2s = -1L                                   // wired() when the slow-start skip ended
+            val window = ArrayDeque<Pair<Long, Long>>()      // (elapsedMs, wired) — 1 s sliding window
+            fun avg(e: Long): Double? {
+                val total = wired()
+                return if (e > SKIP_MS && at2s >= 0 && total > at2s) mbps(total - at2s, e - SKIP_MS)
+                else if (total > 0) mbps(total, e.coerceAtLeast(1)) else null
+            }
 
             val ticker = launch {
                 while (isActive && elapsed() < TEST_MS) {
                     delay(250)
                     val e = elapsed()
-                    snapshot2s(e, localBytes, localAt2s, serverBytes, serverAt2s)
-                    val wired = maxOf(localBytes.get(), serverBytes.get())
-                    val rollDt = ((System.nanoTime() - rollT) / 1_000_000L).coerceAtLeast(1)
-                    val inst = mbps(wired - rollBytes, rollDt)
-                    if (rollDt >= 1_000L) {
-                        rollBytes = wired
-                        rollT = System.nanoTime()
-                    }
+                    val w = wired()
+                    if (e >= SKIP_MS && at2s < 0) at2s = w
+                    window.addLast(e to w)
+                    while (window.size > 1 && e - window.first().first > 1_000L) window.removeFirst()
+                    val (e1, w1) = window.first()
+                    val inst = if (e - e1 >= 200L) mbps(w - w1, e - e1) else 0.0
                     onProgress(
                         SpeedProgress(
                             if (upload) SpeedPhase.UPLOAD else SpeedPhase.DOWNLOAD,
                             elapsedMs = e,
                             mbps = inst,
-                            avgMbps = avgMbps(e, localBytes, localAt2s, serverBytes, serverAt2s, upload),
+                            avgMbps = avg(e),
                             minRttMs = minRtt.get(),
                             server = server,
                             viaCellular = via,
@@ -240,9 +246,10 @@ object Ndt7Client {
                 sender?.cancel()
             }
             val e = elapsed().coerceAtLeast(1)
-            snapshot2s(e, localBytes, localAt2s, serverBytes, serverAt2s)
-            Log.i(TAG, "measure upload=$upload local=${localBytes.get()} server=${serverBytes.get()} minRtt=${minRtt.get()}")
-            Measure(avgMbps(e, localBytes, localAt2s, serverBytes, serverAt2s, upload) ?: 0.0, minRtt.get())
+            if (upload) delay(300)   // let the last TCPInfo counter message land before reading it
+            if (e >= SKIP_MS && at2s < 0) at2s = wired()
+            Log.i(TAG, "measure upload=$upload local=${localBytes.get()} server=${serverBytes.get()} wired=${wired()} minRtt=${minRtt.get()}")
+            Measure(avg(e) ?: 0.0, minRtt.get())
         } finally {
             runCatching { ws.close(1000, null) }
         }
@@ -294,30 +301,6 @@ object Ndt7Client {
                 if (n > serverBytes.get()) serverBytes.set(n)
             }
         }
-    }
-
-    private fun snapshot2s(e: Long, local: AtomicLong, localAt2s: AtomicLong, server: AtomicLong, serverAt2s: AtomicLong) {
-        if (e >= SKIP_MS) {
-            localAt2s.compareAndSet(-1, local.get())
-            val sb = server.get()
-            if (sb > 0) serverAt2s.compareAndSet(-1, sb)
-        }
-    }
-
-    private fun avgMbps(
-        e: Long,
-        local: AtomicLong,
-        localAt2s: AtomicLong,
-        server: AtomicLong,
-        serverAt2s: AtomicLong,
-        upload: Boolean,
-    ): Double? {
-        val total = maxOf(local.get(), server.get())
-        val at2 = maxOf(localAt2s.get(), serverAt2s.get())
-        return if (e > SKIP_MS && at2 >= 0 && total > at2) {
-            val w = mbps(total - at2, e - SKIP_MS)
-            if (w > 0.0) w else mbps(total, e)
-        } else mbps(total, e.coerceAtLeast(1))
     }
 
     private fun mbps(bytes: Long, ms: Long): Double {
