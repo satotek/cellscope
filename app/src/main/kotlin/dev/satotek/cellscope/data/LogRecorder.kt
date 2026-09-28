@@ -22,7 +22,9 @@ class LogRecorder(private val context: Context) {
         val dir = File(context.getExternalFilesDir(null), "logs").apply { mkdirs() }
         val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
         val f = File(dir, "cellscope-$stamp.csv")
-        f.writeText("time,lat,lon,rat,override,mcc,mnc,cellId,enb_gnb,sector,pci,tac,arfcn,band,dl_mhz,bw_khz,rsrp,rsrq,sinr,cqi,ta,level,cc_count,nr_state\n")
+        // Trailing columns only. LogReader.loadCsv skips the header and reads fixed indexes from
+        // the left, so a column inserted in the middle would stop old logs from replaying.
+        f.writeText("time,lat,lon,rat,override,mcc,mnc,cellId,enb_gnb,sector,pci,tac,arfcn,band,dl_mhz,bw_khz,rsrp,rsrq,sinr,cqi,ta,level,cc_count,nr_state,sub,slot,carrier\n")
         val j = File(dir, "cellscope-$stamp.jsonl")
         j.writeText("")
         file = f
@@ -39,6 +41,7 @@ class LogRecorder(private val context: Context) {
             c.rat.name, s.network.overrideNetworkType, c.mcc ?: "", c.mnc ?: "", c.cellId ?: "", c.gnbOrEnb ?: "", c.sectorId ?: "",
             c.pci ?: "", c.tac ?: "", c.arfcn ?: "", c.bandLabel, c.dlMhz ?: "", c.bandwidthKhz ?: "",
             c.rsrp ?: "", c.rsrq ?: "", c.sinr ?: "", c.cqi ?: "", c.ta ?: "", c.level, cc, s.network.nrState,
+            s.sim?.subId ?: "", s.sim?.slotIndex ?: "", csvField(s.sim?.label ?: ""),
         ).joinToString(",")
         f.appendText(row + "\n")
         jsonl?.appendText(sampleJson(s, sample) + "\n")
@@ -62,6 +65,10 @@ class LogRecorder(private val context: Context) {
         put("ccLte", smp.ccLte)
         put("ccNr", smp.ccNr)
         smp.rttMs?.let { put("rttMs", it) }
+        s.sim?.let {
+            put("sub", it.subId)
+            put("simLabel", it.label)
+        }
         put("neighbours", JSONArray().also { arr -> smp.neighbours.forEach { arr.put(nbJson(it)) } })
         s.location?.let { put("lat", it.first); put("lon", it.second) }
     }.toString()
@@ -78,4 +85,10 @@ class LogRecorder(private val context: Context) {
 
     private fun JSONObject.putOptInt(k: String, v: Int?) { if (v != null) put(k, v) }
     private fun JSONObject.putOptLong(k: String, v: Long?) { if (v != null) put(k, v) }
+
+    /** Quote only when the carrier label would split a later reader on commas. */
+    private fun csvField(s: String): String {
+        if (s.none { it == ',' || it == '"' || it == '\n' || it == '\r' }) return s
+        return "\"" + s.replace("\"", "\"\"") + "\""
+    }
 }

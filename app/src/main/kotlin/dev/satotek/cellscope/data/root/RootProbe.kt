@@ -13,10 +13,11 @@ object RootProbe {
 
     data class RegistryDump(val raw: String, val components: List<CarrierComponent>, val imsRegistered: Boolean?, val imsTransport: String?, val dataCalls: List<DataCall>)
 
-    suspend fun telephonyRegistry(): RegistryDump {
+    /** [phoneId] is [dev.satotek.cellscope.data.telephony.SimInfo.slotIndex] (SubscriptionInfo.simSlotIndex). */
+    suspend fun telephonyRegistry(phoneId: Int = 0): RegistryDump {
         val r = RootShell.run("dumpsys telephony.registry", 15)
         val raw = r.out.ifBlank { r.err }
-        return RegistryDump(raw, parsePhysicalChannels(raw), parseImsRegistered(raw), parseImsTransport(raw), parseDataCalls(raw))
+        return RegistryDump(raw, parsePhysicalChannels(raw, phoneId), parseImsRegistered(raw, phoneId), parseImsTransport(raw, phoneId), parseDataCalls(raw, phoneId))
     }
 
     /**
@@ -24,10 +25,11 @@ object RootProbe {
      *   id: 403, netId: 104, network type: NR, APN Setting: [ApnSetting] povo IMS, 3, 44054, IMS, , null, , null, null, 0, ims, …,
      *   link properties: {InterfaceName: wwan3 LinkAddresses: [ 2001:…/64 ] DnsAddresses: [ ] PcscfAddresses: [ … ] … MTU: 1440 …},
      *   default QoS: NrQos { fiveQi=5 … }, fail cause: NONE(0x0), …
-     * Only the slot-0 line is parsed (first occurrence).
+     * One line per phone. `Pair{1` is the transport, not the phone. The phone is the enclosing
+     * `Phone Id=N` block, or an explicit `mPreciseDataConnectionStates[N]` on older builds.
      */
-    fun parseDataCalls(raw: String): List<DataCall> {
-        val line = raw.lineSequence().firstOrNull { it.trimStart().startsWith("mPreciseDataConnectionStates") } ?: return emptyList()
+    fun parseDataCalls(raw: String, phoneId: Int = 0): List<DataCall> {
+        val line = fieldForPhone(raw, "mPreciseDataConnectionStates", phoneId) ?: return emptyList()
         val chunks = line.split("= state: ").drop(1)
         return chunks.mapNotNull { c ->
             fun field(k: String) = Regex("$k: ([^,]+)").find(c)?.groupValues?.get(1)?.trim()
@@ -55,14 +57,15 @@ object RootProbe {
     }
 
     /**
-     * Lines look like (Android 14–17):
+     * Lines look like (Android 14–17), inside `Phone Id=N` or indexed as `mPhysicalChannelConfigs[N]`:
      * mPhysicalChannelConfigs[0]=[{mConnectionStatus=PrimaryServing,mCellBandwidthDownlinkKhz=20000,
      *   mCellBandwidthUplinkKhz=20000,mNetworkType=LTE,mFrequencyRange=UNKNOWN,mDownlinkChannelNumber=1850,
      *   mUplinkChannelNumber=19850,mContextIds=[1],mPhysicalCellId=123,mBand=3,mDownlinkFrequency=1860000,
      *   mUplinkFrequency=1765000}, {…}]
+     * N is the phoneId. A standby SIM often has an empty list; that is not a parse failure.
      */
-    fun parsePhysicalChannels(raw: String): List<CarrierComponent> {
-        val line = raw.lineSequence().firstOrNull { it.trimStart().startsWith("mPhysicalChannelConfigs") } ?: return emptyList()
+    fun parsePhysicalChannels(raw: String, phoneId: Int = 0): List<CarrierComponent> {
+        val line = fieldForPhone(raw, "mPhysicalChannelConfigs", phoneId) ?: return emptyList()
         val body = line.substringAfter('=', "")
         val objs = Regex("\\{([^{}]*)\\}").findAll(body).map { it.groupValues[1] }.toList()
         return objs.mapNotNull { obj ->
@@ -88,15 +91,65 @@ object RootProbe {
         }
     }
 
-    private fun parseImsRegistered(raw: String): Boolean? =
-        Regex("mImsReg(?:istration)?State(?:\\[0])?\\s*=\\s*(\\d+|REGISTERED|NOT_REGISTERED|REGISTERING)").find(raw)?.groupValues?.get(1)?.let {
+    private fun parseImsRegistered(raw: String, phoneId: Int = 0): Boolean? =
+        imsToken(raw, phoneId, "mImsReg(?:istration)?State", "\\d+|REGISTERED|NOT_REGISTERED|REGISTERING")?.let {
             it == "2" || it == "REGISTERED"
         }
 
-    private fun parseImsTransport(raw: String): String? =
-        Regex("mImsTransportType(?:\\[0])?\\s*=\\s*(\\d+|\\w+)").find(raw)?.groupValues?.get(1)?.let {
+    private fun parseImsTransport(raw: String, phoneId: Int = 0): String? =
+        imsToken(raw, phoneId, "mImsTransportType", "\\d+|\\w+")?.let {
             when (it) { "1" -> "WWAN"; "2" -> "WLAN"; else -> it }
         }
+
+    /** Phone 0 still accepts the historical unindexed line. Any other phone must match its own block. */
+    private fun imsToken(raw: String, phoneId: Int, key: String, value: String): String? {
+        Regex("$key\\[$phoneId]\\s*=\\s*($value)").find(raw)?.let { return it.groupValues[1] }
+        val block = phoneBlock(raw.lineSequence().toList(), phoneId)
+        if (block != null) {
+            Regex("$key\\s*=\\s*($value)").find(block.joinToString("\n"))?.let { return it.groupValues[1] }
+        }
+        if (phoneId != 0) return null
+        return Regex("$key(?:\\[0])?\\s*=\\s*($value)").find(raw)?.groupValues?.get(1)
+    }
+
+    /**
+     * Pick the per-phone line. Current AOSP prints `Phone Id=N` then an unindexed key.
+     * Some builds print `key[N]=` instead. A single unindexed line is phone 0, matching the
+     * old "first occurrence" parser so a one-SIM dump does not change.
+     */
+    fun fieldForPhone(raw: String, key: String, phoneId: Int): String? {
+        val lines = raw.lineSequence().toList()
+        val indexed = Regex("${Regex.escape(key)}\\[$phoneId]=")
+        lines.firstOrNull { indexed.containsMatchIn(it) }?.let { return it }
+        if (Regex("${Regex.escape(key)}\\[\\d+]=").containsMatchIn(raw)) return null
+        val block = phoneBlock(lines, phoneId)
+        if (block != null) return block.firstOrNull { it.trimStart().startsWith(key) }
+        if (lines.any { phoneHeader.matchEntire(it.trim()) != null }) return null
+        return lines.filter { it.trimStart().startsWith(key) }.getOrNull(phoneId)
+    }
+
+    private fun phoneBlock(lines: List<String>, phoneId: Int): List<String>? {
+        val start = lines.indexOfFirst {
+            phoneHeader.matchEntire(it.trim())?.groupValues?.get(1)?.toIntOrNull() == phoneId
+        }
+        if (start < 0) return null
+        val out = ArrayList<String>()
+        for (i in start + 1 until lines.size) {
+            if (phoneHeader.matchEntire(lines[i].trim()) != null) break
+            out += lines[i]
+        }
+        return out
+    }
+
+    private val phoneHeader = Regex("""Phone Id=(\d+)\s*""")
+
+    /** Lines tagged with this phone win. Untagged lines stay visible for phone 0 only. */
+    private fun lastForPhone(lines: List<String>, phoneId: Int): String? {
+        val mark = "[$phoneId]"
+        val scoped = lines.filter { it.contains(mark) || it.contains("phoneId=$phoneId") || it.contains("phoneId = $phoneId") }
+        if (scoped.isNotEmpty()) return scoped.last()
+        return if (phoneId == 0) lines.lastOrNull() else null
+    }
 
     /**
      * What the framework's radio log tells us that the redacted ServiceState no longer does:
@@ -105,17 +158,18 @@ object RootProbe {
     data class RadioLog(val lines: List<String>, val nrStateMachine: String?, val anchorNrPci: Int?, val nrBands: List<Int>, val imsTech: Int?)
 
     /** The last N lines of the radio log buffer, filtered to the interesting RIL / framework events. */
-    suspend fun radioLog(lines: Int = 1500): RadioLog {
+    suspend fun radioLog(lines: Int = 1500, phoneId: Int = 0): RadioLog {
         val r = RootShell.run("logcat -b radio -d -t $lines -v time", 15)
         val all = r.out.lines().filter { it.isNotBlank() }
         // NetworkTypeController: [0] NrConnectedAdvancedState: process EVENT_…
-        val ntc = Regex("NetworkTypeController: \\[0] (\\w+State): ")
+        // The bracket is the phoneId. Phone 0 keeps the old match; another phone must be its own.
+        val ntc = Regex("NetworkTypeController: \\[$phoneId] (\\w+State): ")
         val state = all.lastOrNull { ntc.containsMatchIn(it) }?.let { ntc.find(it)?.groupValues?.get(1) }
-        val anchorLine = all.lastOrNull { it.contains("anchorNrCell=") }
+        val anchorLine = lastForPhone(all.filter { it.contains("anchorNrCell=") }, phoneId)
         val anchor = anchorLine?.let { Regex("anchorNrCell=(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }?.takeIf { it in 0..1007 }
         val nrBands = anchorLine?.let { Regex("nrBands=\\[([^\\]]*)]").find(it)?.groupValues?.get(1) }
             ?.split(',')?.mapNotNull { it.trim().toIntOrNull() } ?: emptyList()
-        val ims = all.lastOrNull { it.contains("getImsRegistrationTechnology") }
+        val ims = lastForPhone(all.filter { it.contains("getImsRegistrationTechnology") }, phoneId)
             ?.let { Regex("getImsRegistrationTechnology\\s*=\\s*(-?\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
         val keys = listOf("UNSOL", "SIGNAL_STRENGTH", "CELL_INFO", "PHYSICAL_CHANNEL", "NetworkTypeController", "ImsRegistration", "DATA_CALL", "RADIO_STATE", "NETWORK_STATE", "getImsRegistrationTechnology", "DcTracker", "DataNetwork")
         val filtered = all.filter { l -> keys.any { l.contains(it, ignoreCase = true) } }

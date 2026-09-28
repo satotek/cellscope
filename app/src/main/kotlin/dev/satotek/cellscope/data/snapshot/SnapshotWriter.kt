@@ -88,6 +88,14 @@ object SnapshotWriter {
 
     fun toJson(s: Snapshot, takenAt: Long): JSONObject = JSONObject().apply {
         put("takenAt", takenAt)
+        s.sim?.let { sim ->
+            put("sim", JSONObject().apply {
+                put("subId", sim.subId)
+                put("slot", sim.slotIndex)
+                put("label", sim.label)
+                put("isDds", sim.isDds)
+            })
+        }
         s.serving?.let { put("serving", cellJson(it)) }
         put("secondaries", JSONArray().also { arr -> s.secondaries.forEach { arr.put(cellJson(it)) } })
         put("neighbours", JSONArray().also { arr -> s.neighbours.forEach { arr.put(cellJson(it)) } })

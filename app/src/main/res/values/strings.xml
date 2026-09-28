@@ -232,4 +232,8 @@
     <string name="oss_map">Map data</string>
     <string name="oss_libraries">Libraries</string>
     <string name="oss_tile_policy">Tile usage policy</string>
+    <string name="sim_data_badge">Data</string>
+    <string name="sim_speed_on_dds">Speed test runs on the data SIM (%1$s).</string>
+    <string name="sim_metrics_on_dds">Throughput and ping are measured on the data SIM (%1$s).</string>
+    <string name="sim_standby">A standby SIM often reports no neighbour cells.</string>
 </resources>

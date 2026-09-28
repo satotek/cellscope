@@ -1,6 +1,7 @@
 package dev.satotek.cellscope.data.model
 
 import dev.satotek.cellscope.R
+import dev.satotek.cellscope.data.telephony.SimInfo
 
 /** Radio access technology of a cell. */
 enum class Rat(val label: String) { NR("5G NR"), LTE("LTE"), WCDMA("WCDMA"), GSM("GSM"), TDSCDMA("TD-SCDMA"), UNKNOWN("?") }
@@ -154,6 +155,9 @@ data class Snapshot(
     val updateCount: Long = 0L,
     val location: Pair<Double, Double>? = null,
     val locationAccuracyM: Float? = null,
+    /** Subscription currently being observed. Null until the active-SIM list has been read. */
+    val sim: SimInfo? = null,
+    val sims: List<SimInfo> = emptyList(),
 ) {
     val serving: CellEntry? get() = cells.firstOrNull { it.isPrimary } ?: cells.firstOrNull { it.registered }
     /** CellInfo rarely flags SCCs; correlate with PhysicalChannelConfig by (PCI, ARFCN) instead. */

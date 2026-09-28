@@ -61,6 +61,7 @@ import dev.satotek.cellscope.ui.components.Tag
 import dev.satotek.cellscope.ui.components.fmt
 import dev.satotek.cellscope.ui.components.fmtBw
 import dev.satotek.cellscope.ui.components.fmtMhz
+import dev.satotek.cellscope.ui.components.standbyDdsLabel
 import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import java.text.SimpleDateFormat
@@ -216,6 +217,10 @@ private fun NetworkCard(
             Metric("CA", n.usingCarrierAggregation?.let { if (it) "ON" else "off" } ?: "—", color = if (n.usingCarrierAggregation == true) Palette.lte else Palette.text)
         }
         Spacer(Modifier.height(10.dp))
+        standbyDdsLabel(s)?.let { dds ->
+            Text(stringResource(R.string.sim_metrics_on_dds, dds), fontSize = 12.sp, color = Palette.accent)
+            Spacer(Modifier.height(8.dp))
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Metric("Service", n.serviceState, color = if (n.serviceState == "IN_SERVICE") Palette.good else Palette.poor)
             Metric("Data", n.dataState)
@@ -238,7 +243,10 @@ private fun NetworkCard(
             Text("Cell bandwidths: " + n.cellBandwidthsKhz.joinToString(" + ") { fmtBw(it) }, style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
         }
         Spacer(Modifier.height(12.dp))
-        SpeedBlock(speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest)
+        SpeedBlock(
+            speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest,
+            ddsNote = standbyDdsLabel(s)?.let { stringResource(R.string.sim_speed_on_dds, it) },
+        )
     }
 }
 
@@ -249,9 +257,13 @@ private fun SpeedBlock(
     last: SpeedResult?,
     onStart: () -> Unit,
     onCancel: () -> Unit,
+    ddsNote: String? = null,
 ) {
     var confirm by remember { mutableStateOf(false) }
     val running = progress != null && progress.phase != SpeedPhase.DONE && progress.phase != SpeedPhase.ERROR
+    if (ddsNote != null) {
+        Text(ddsNote, fontSize = 12.sp, color = Palette.accent, modifier = Modifier.padding(bottom = 8.dp))
+    }
     if (running && progress != null) {
         val phaseLabel = when (progress.phase) {
             SpeedPhase.LOCATE -> stringResource(R.string.speed_locate)
@@ -299,7 +311,12 @@ private fun SpeedBlock(
         AlertDialog(
             onDismissRequest = { confirm = false },
             title = { Text(stringResource(R.string.speed_confirm_title)) },
-            text = { Text(stringResource(R.string.speed_confirm_body)) },
+            text = {
+                Text(
+                    stringResource(R.string.speed_confirm_body) +
+                        if (ddsNote != null) "\n\n$ddsNote" else "",
+                )
+            },
             confirmButton = { Button(onClick = { confirm = false; onStart() }, shapes = ButtonDefaults.shapes()) { Text(stringResource(R.string.speed_test)) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
         )

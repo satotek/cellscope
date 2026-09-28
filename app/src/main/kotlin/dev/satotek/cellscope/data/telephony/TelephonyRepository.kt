@@ -8,6 +8,7 @@ import android.os.Build
 import android.telephony.CellInfo
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
@@ -26,10 +27,21 @@ import java.util.concurrent.Executor
  * Public-API data source. Everything here works with READ_PHONE_STATE +
  * ACCESS_FINE_LOCATION. Listeners that need READ_PRIVILEGED_PHONE_STATE
  * (PhysicalChannelConfig) are attempted and silently degrade on SecurityException.
+ *
+ * [subId] pins every call on [tm] (cell info, service state, the telephony callback, RAT lock).
+ * An invalid id keeps the process-default manager, which is what a phone with no SIM has.
+ * A callback registered on a subscription-scoped manager receives only that subscription.
+ * The secondary SIM in DSDS often has no neighbour scan; an empty cell list is normal.
  */
-class TelephonyRepository(private val context: Context) {
+class TelephonyRepository(
+    private val context: Context,
+    val subId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+) {
 
-    private val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    private val tm: TelephonyManager = run {
+        val base = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        if (SubscriptionManager.isValidSubscriptionId(subId)) base.createForSubscriptionId(subId) else base
+    }
     private val mainExecutor: Executor = context.mainExecutor
 
     private val _cells = MutableStateFlow<List<CellEntry>>(emptyList())

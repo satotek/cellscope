@@ -215,4 +215,8 @@
     <string name="oss_map">地図データ</string>
     <string name="oss_libraries">ライブラリ</string>
     <string name="oss_tile_policy">タイル利用ポリシー</string>
+    <string name="sim_data_badge">データ</string>
+    <string name="sim_speed_on_dds">速度測定はデータ SIM（%1$s）で実行されます。</string>
+    <string name="sim_metrics_on_dds">通信量と Ping はデータ SIM（%1$s）のものです。</string>
+    <string name="sim_standby">待受だけの副 SIM は隣接セルを測らないことがあります。</string>
 </resources>

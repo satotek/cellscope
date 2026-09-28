@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.location.Location
+import android.telephony.SubscriptionManager
 import android.location.LocationListener
 import android.location.LocationManager
 import androidx.lifecycle.AndroidViewModel
@@ -14,6 +15,7 @@ import dev.satotek.cellscope.data.HistoryStore
 import dev.satotek.cellscope.data.LogRecorder
 import dev.satotek.cellscope.data.Pinger
 import dev.satotek.cellscope.data.model.NbSample
+import dev.satotek.cellscope.data.model.NetworkState
 import dev.satotek.cellscope.data.model.ccSplit
 import dev.satotek.cellscope.data.model.PingStats
 import dev.satotek.cellscope.data.model.PrivilegeLevel
@@ -30,6 +32,8 @@ import dev.satotek.cellscope.data.speed.SpeedProgress
 import dev.satotek.cellscope.data.speed.SpeedResult
 import dev.satotek.cellscope.data.telephony.CellMapper
 import dev.satotek.cellscope.data.telephony.RatLock
+import dev.satotek.cellscope.data.telephony.SimInfo
+import dev.satotek.cellscope.data.telephony.SimRepository
 import dev.satotek.cellscope.data.telephony.TelephonyRepository
 import dev.satotek.cellscope.overlay.OverlayService
 import kotlinx.coroutines.Dispatchers
@@ -45,9 +49,19 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import java.io.File
 
+/** The SIM list is event-driven; this is only the fallback re-read interval for a DDS switch. */
+private const val SIM_REFRESH_MS = 10_000L
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val repo = TelephonyRepository(app)
+    // One subscription at a time: a second TelephonyCallback would wake the modem for a radio
+    // that DSDS is not scanning. subId is not saved — it stops meaning anything when the SIM
+    // layout changes, so every process starts on the default data SIM.
+    private val simsRepo = SimRepository(app)
+    private val _selectedSub = MutableStateFlow(defaultDataSubId())
+    val selectedSub: StateFlow<Int> = _selectedSub
+    private var repo = TelephonyRepository(app, _selectedSub.value)
+    private val repoJobs = ArrayList<Job>()
     private val recorder = LogRecorder(app)
     private val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
@@ -64,6 +78,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var pollJob: Job? = null
     private var rootJob: Job? = null
     private var lastRx = -1L; private var lastTx = -1L; private var lastTrafficT = 0L
+    private var lastSimRefresh = 0L
 
     private val _pingHost = MutableStateFlow(prefs.getString("ping_host", null) ?: "1.1.1.1")
     val pingHost: StateFlow<String> = _pingHost
@@ -155,7 +170,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             Ndt7Client.run(getApplication(), server, serving).collect { p ->
                 _speedState.value = p
                 p.result?.let { r ->
-                    val next = (listOf(r) + _speedResults.value).take(50)
+                    // The bytes always go out on the default data SIM, even when another SIM is on screen.
+                    val dds = _state.value.sims.firstOrNull { it.isDds } ?: _state.value.sim
+                    val stamped = r.copy(subId = dds?.subId, simLabel = dds?.label)
+                    val next = (listOf(stamped) + _speedResults.value).take(50)
                     _speedResults.value = next
                     saveSpeedResults(next)
                 }
@@ -175,7 +193,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun writeSpeedCsv(dir: File): File {
         val f = File(dir, "speed.csv")
         val rows = _speedResults.value
-        val sb = StringBuilder("time,dl_mbps,ul_mbps,min_rtt_ms,server,rat,band,pci,rsrp,via_cellular\n")
+        val sb = StringBuilder("time,dl_mbps,ul_mbps,min_rtt_ms,server,rat,band,pci,rsrp,via_cellular,sub,sim_label\n")
         val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
         rows.asReversed().forEach { r ->
             sb.append(fmt.format(java.util.Date(r.t))).append(',')
@@ -184,7 +202,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             sb.append('"').append(r.server.replace("\"", "'")).append('"').append(',')
             sb.append(r.rat).append(',').append(r.band).append(',')
             sb.append(r.pci ?: "").append(',').append(r.rsrp ?: "").append(',')
-            sb.append(r.viaCellular).append('\n')
+            sb.append(r.viaCellular).append(',')
+            sb.append(r.subId ?: "").append(',')
+            sb.append(csvField(r.simLabel ?: "")).append('\n')
         }
         f.writeText(sb.toString())
         return f
@@ -307,19 +327,89 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         CellMapper.gnbBits = _gnbBits.value
-        viewModelScope.launch { repo.cells.collect { cells -> _state.update { it.copy(cells = cells) } } }
-        viewModelScope.launch { repo.network.collect { n -> _state.update { it.copy(network = n) } } }
-        viewModelScope.launch {
-            repo.physicalChannels.collect { pcc ->
+        bindRepoFlows()
+        viewModelScope.launch { simsRepo.sims.collect { onSims(it) } }
+    }
+
+    /** Not persisted. Ignored when [subId] is not in the active list. */
+    fun setSelectedSub(subId: Int) {
+        if (subId == _selectedSub.value) return
+        if (_state.value.sims.none { it.subId == subId }) return
+        applySub(subId)
+    }
+
+    private fun onSims(list: List<SimInfo>) {
+        val selected = _selectedSub.value
+        val current = list.firstOrNull { it.subId == selected }
+        if (current != null) {
+            _state.update { it.copy(sims = list, sim = current) }
+            return
+        }
+        val fallback = list.firstOrNull { it.isDds }?.subId
+            ?: list.firstOrNull()?.subId
+            ?: defaultDataSubId()
+        _state.update { it.copy(sims = list) }
+        if (fallback != repo.subId) applySub(fallback)
+        else _state.update { it.copy(sim = list.firstOrNull { s -> s.subId == fallback }) }
+    }
+
+    private fun applySub(subId: Int) {
+        val changed = repo.subId != subId
+        _selectedSub.value = subId
+        if (changed) rebindRepo(subId)
+        val sim = _state.value.sims.firstOrNull { it.subId == subId }
+        if (!changed) {
+            _state.update { it.copy(sim = sim) }
+            return
+        }
+        // The chart is one SIM. Mixing the previous SIM's samples in would look like a handover.
+        HistoryStore.clear()
+        lastRx = -1L; lastTx = -1L; lastTrafficT = 0L
+        _state.update {
+            it.copy(
+                cells = emptyList(),
+                network = NetworkState(),
+                history = emptyList(),
+                events = emptyList(),
+                sim = sim,
+                root = it.root.copy(physicalChannels = emptyList(), physicalChannelsRaw = "", dataCalls = emptyList()),
+            )
+        }
+        if (repo.hasPermissions()) repo.start()
+        refreshRatLock()
+    }
+
+    private fun rebindRepo(subId: Int) {
+        repo.stop()
+        repoJobs.forEach { it.cancel() }
+        repoJobs.clear()
+        repo = TelephonyRepository(getApplication(), subId)
+        bindRepoFlows()
+    }
+
+    private fun bindRepoFlows() {
+        val r = repo
+        repoJobs += viewModelScope.launch { r.cells.collect { cells -> _state.update { it.copy(cells = cells) } } }
+        repoJobs += viewModelScope.launch { r.network.collect { n -> _state.update { it.copy(network = n) } } }
+        repoJobs += viewModelScope.launch {
+            r.physicalChannels.collect { pcc ->
                 if (pcc.isNotEmpty()) _state.update { it.copy(root = it.root.copy(physicalChannels = pcc), privilege = PrivilegeLevel.PRIV_APP) }
             }
         }
     }
 
+    /**
+     * Phone 0 is the wrong guess on a device whose only active SIM sits in slot 1 (an eSIM keeps
+     * its own phone), so fall back to the data SIM's slot rather than to zero.
+     */
+    private fun phoneId(): Int = _state.value.sim?.slotIndex
+        ?: SubscriptionManager.getSlotIndex(defaultDataSubId()).takeIf { it >= 0 }
+        ?: 0
+
     fun onPermissionsResult() {
         val ok = repo.hasPermissions()
         _state.update { it.copy(permissionsGranted = ok, privilege = if (repo.isPrivileged()) PrivilegeLevel.PRIV_APP else it.privilege) }
-        if (ok) { repo.start(); startPolling(); startLocation(); if (_pingEnabled.value && pingJob == null) startPing() }
+        if (ok) { simsRepo.start(); repo.start(); startPolling(); startLocation(); if (_pingEnabled.value && pingJob == null) startPing() }
         refreshRatLock(); refreshConnectivity()
     }
 
@@ -329,7 +419,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             // Sample on a fixed clock, not on change events – StateFlow dedups identical cell lists.
-            while (isActive) { repo.refresh(); delay(_pollIntervalMs.value); onTick() }
+            while (isActive) {
+                // OnSubscriptionsChangedListener covers add/remove; this slow re-read only catches a
+                // default-data-SIM switch, which the listener does not always report.
+                val now = System.currentTimeMillis()
+                if (now - lastSimRefresh >= SIM_REFRESH_MS) { lastSimRefresh = now; simsRepo.refresh() }
+                repo.refresh(); delay(_pollIntervalMs.value); onTick()
+            }
         }
     }
 
@@ -398,14 +494,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             var n = 0
             while (isActive) {
                 runCatching {
-                    val reg = RootProbe.telephonyRegistry()
-                    val log = if (n % 2 == 0) RootProbe.radioLog() else null
+                    val phoneId = phoneId()
+                    val reg = RootProbe.telephonyRegistry(phoneId)
+                    val log = if (n % 2 == 0) RootProbe.radioLog(phoneId = phoneId) else null
+                    // The shell call outlived a SIM switch. Drop it instead of painting the other phone.
+                    if (phoneId() != phoneId) return@runCatching
                     _state.update {
                         it.copy(
                             root = it.root.copy(
                                 physicalChannels = reg.components.ifEmpty { it.root.physicalChannels },
                                 dataCalls = reg.dataCalls,
-                                physicalChannelsRaw = reg.raw.lineSequence().firstOrNull { l -> l.contains("mPhysicalChannelConfigs") } ?: "",
+                                physicalChannelsRaw = RootProbe.fieldForPhone(reg.raw, "mPhysicalChannelConfigs", phoneId) ?: "",
                                 radioLog = log?.lines ?: it.root.radioLog, lastError = null,
                             ),
                             network = it.network.copy(
@@ -451,6 +550,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         pollJob = null; rootJob = null; pingJob = null; speedJob = null
         if (recorder.active) { recorder.stop(); _recordingFlow.value = false }
         runCatching { lm.removeUpdates(locListener) }
+        simsRepo.stop()
         repo.stop()
         if (_overlayEnabled.value) setOverlayEnabled(false)
     }
@@ -469,8 +569,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    override fun onCleared() { repo.stop(); runCatching { lm.removeUpdates(locListener) } }
+    override fun onCleared() {
+        repoJobs.forEach { it.cancel() }
+        simsRepo.stop()
+        repo.stop()
+        runCatching { lm.removeUpdates(locListener) }
+    }
+
+    private fun csvField(s: String): String {
+        if (s.none { it == ',' || it == '"' || it == '\n' || it == '\r' }) return s
+        return "\"" + s.replace("\"", "\"\"") + "\""
+    }
 }
+
+private fun defaultDataSubId(): Int =
+    runCatching { SubscriptionManager.getDefaultDataSubscriptionId() }.getOrDefault(SubscriptionManager.INVALID_SUBSCRIPTION_ID)
 
 enum class HudPage { SERVING, THROUGHPUT;
     fun next() = if (this == SERVING) THROUGHPUT else SERVING

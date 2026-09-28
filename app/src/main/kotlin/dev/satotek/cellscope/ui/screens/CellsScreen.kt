@@ -32,6 +32,8 @@ import dev.satotek.cellscope.data.model.Rat
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.ui.components.KeyValueRow
 import dev.satotek.cellscope.ui.components.LevelBar
+import dev.satotek.cellscope.ui.components.SimSelector
+import dev.satotek.cellscope.ui.components.standbyDdsLabel
 import dev.satotek.cellscope.ui.components.Panel
 import dev.satotek.cellscope.ui.components.RatChip
 import dev.satotek.cellscope.ui.components.Tag
@@ -43,9 +45,19 @@ import dev.satotek.cellscope.ui.theme.Palette
 
 /** Every cell the modem reports, grouped by RAT, each expandable to the full field list. */
 @Composable
-fun CellsScreen(s: Snapshot) {
+fun CellsScreen(s: Snapshot, onSelectSub: (Int) -> Unit = {}) {
     val groups = s.cells.groupBy { it.rat }.toSortedMap(compareBy { it.ordinal })
+    val standby = standbyDdsLabel(s) != null
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (s.sims.size >= 2) item {
+            Column {
+                SimSelector(s.sims, s.sim?.subId, onSelectSub)
+                if (standby && s.cells.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.sim_standby), fontSize = 12.sp, color = Palette.textDim)
+                }
+            }
+        }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("${stringResource(R.string.tab_cells)} · ${s.cells.size}", style = MaterialTheme.typography.headlineMedium, color = Palette.text)
@@ -56,7 +68,9 @@ fun CellsScreen(s: Snapshot) {
             item { Text(rat.label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.rat(rat), modifier = Modifier.padding(top = 8.dp)) }
             items(cells, key = { "${it.rat}-${it.pci}-${it.arfcn}-${it.cellId}" }) { CellCard(it, isScc = it in s.secondaries) }
         }
-        if (s.cells.isEmpty()) item { Text("no cells", color = Palette.textDim) }
+        if (s.cells.isEmpty()) item {
+            Text(if (standby) stringResource(R.string.sim_standby) else "no cells", color = Palette.textDim)
+        }
     }
 }
 

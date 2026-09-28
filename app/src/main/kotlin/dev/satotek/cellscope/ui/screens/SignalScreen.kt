@@ -42,6 +42,8 @@ import dev.satotek.cellscope.data.model.SignalSample
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.ui.components.EventRow
 import dev.satotek.cellscope.ui.components.Panel
+import dev.satotek.cellscope.ui.components.SimSelector
+import dev.satotek.cellscope.ui.components.standbyDdsLabel
 import dev.satotek.cellscope.ui.components.RatStrip
 import dev.satotek.cellscope.ui.components.Series
 import dev.satotek.cellscope.ui.components.SignalChart
@@ -54,7 +56,7 @@ private val windows = listOf("2m" to 2 * 60_000L, "5m" to 5 * 60_000L, "15m" to 
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun SignalScreen(s: Snapshot) {
+fun SignalScreen(s: Snapshot, onSelectSub: (Int) -> Unit = {}) {
     val h = s.history
     var win by rememberSaveable { mutableIntStateOf(1) }
     // Tapped sample → inspector sheet. Kept as a time so it survives new samples arriving.
@@ -72,6 +74,16 @@ fun SignalScreen(s: Snapshot) {
     val zonesSinr = listOf(Zone(0, Palette.poor.copy(alpha = 0.07f)), Zone(13, Palette.fair.copy(alpha = 0.06f)), Zone(40, Palette.good.copy(alpha = 0.05f)))
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (s.sims.size >= 2) item {
+            Column {
+                SimSelector(s.sims, s.sim?.subId, onSelectSub)
+                standbyDdsLabel(s)?.let { dds ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(R.string.sim_metrics_on_dds, dds), fontSize = 12.sp, color = Palette.accent)
+                    Text(stringResource(R.string.sim_standby), fontSize = 12.sp, color = Palette.textDim)
+                }
+            }
+        }
         item {
             Column {
                 Text(stringResource(R.string.tab_signal), style = MaterialTheme.typography.headlineMedium, color = Palette.text)

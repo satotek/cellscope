@@ -27,6 +27,9 @@ data class SpeedResult(
     val pci: Int?,
     val rsrp: Int?,
     val viaCellular: Boolean = true,
+    /** Default-data SIM the transfer actually ran on. Absent on results saved before DSDS. */
+    val subId: Int? = null,
+    val simLabel: String? = null,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("t", t)
@@ -39,6 +42,8 @@ data class SpeedResult(
         if (pci != null) put("pci", pci)
         if (rsrp != null) put("rsrp", rsrp)
         put("viaCellular", viaCellular)
+        if (subId != null) put("subId", subId)
+        if (simLabel != null) put("simLabel", simLabel)
     }
 
     companion object {
@@ -53,6 +58,8 @@ data class SpeedResult(
             pci = if (o.has("pci")) o.getInt("pci") else null,
             rsrp = if (o.has("rsrp")) o.getInt("rsrp") else null,
             viaCellular = o.optBoolean("viaCellular", true),
+            subId = if (o.has("subId") && !o.isNull("subId")) o.getInt("subId") else null,
+            simLabel = if (o.has("simLabel") && !o.isNull("simLabel")) o.optString("simLabel").takeIf { it.isNotEmpty() } else null,
         )
     }
 }

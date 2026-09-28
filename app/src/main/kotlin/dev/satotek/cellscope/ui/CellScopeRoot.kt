@@ -154,8 +154,8 @@ fun CellScopeRoot(
                         onStartSpeedTest = { vm.startSpeedTest() },
                         onCancelSpeedTest = { vm.cancelSpeedTest() },
                     )
-                    Tab.CELLS -> CellsScreen(state)
-                    Tab.SIGNAL -> SignalScreen(state)
+                    Tab.CELLS -> CellsScreen(state, onSelectSub = vm::setSelectedSub)
+                    Tab.SIGNAL -> SignalScreen(state, onSelectSub = vm::setSelectedSub)
                     Tab.STATS -> StatsScreen(state, logFile = if (recording) vm.logFile else null, speedResults = speedResults)
                     Tab.MORE -> MoreScreen(vm, state, onExit = onExit)
                 }
