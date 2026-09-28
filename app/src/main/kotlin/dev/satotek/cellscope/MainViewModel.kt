@@ -348,15 +348,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { simsRepo.sims.collect { onSims(it) } }
     }
 
+    /** Set once the user touches the selector: their pick then outranks a data-SIM change. */
+    private var subPickedByUser = false
+
     /** Not persisted. Ignored when [subId] is not in the active list. */
     fun setSelectedSub(subId: Int) {
         if (subId == _selectedSub.value) return
         if (_state.value.sims.none { it.subId == subId }) return
+        subPickedByUser = true
         applySub(subId)
     }
 
     private fun onSims(list: List<SimInfo>) {
         val selected = _selectedSub.value
+        // Switching the data SIM in Settings does not restart this process, so an app the user has
+        // not steered would otherwise keep watching the SIM that was default when it launched.
+        val dds = list.firstOrNull { it.isDds }
+        if (!subPickedByUser && dds != null && dds.subId != selected) {
+            _state.update { it.copy(sims = list) }
+            applySub(dds.subId)
+            return
+        }
         val current = list.firstOrNull { it.subId == selected }
         if (current != null) {
             _state.update { it.copy(sims = list, sim = current) }
