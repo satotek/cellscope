@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.CellTower
@@ -144,6 +145,7 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         }
         else -> when (s) {
         "visits" -> SubScreen(stringResource(R.string.more_visits), onBack = { sub = null }) { if (vm != null) VisitedCellsScreen(vm) }
+        "stats" -> SubScreen(stringResource(R.string.tab_stats), onBack = { sub = null }) { StatsScreen(state) }
         "raw" -> SubScreen(stringResource(R.string.more_raw), onBack = { sub = null }) { RawScreen(state, showTitle = false) }
         "logs" -> {
             val rf = replayPath
@@ -180,6 +182,7 @@ private val settingsSections = listOf(
 )
 private val dataRows = listOf(
     MoreRow("visits", R.string.more_visits, Icons.Outlined.CellTower),
+    MoreRow("stats", R.string.tab_stats, Icons.Filled.ShowChart),
     MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
     MoreRow("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
     MoreRow("speed", R.string.more_speed, Icons.Outlined.Speed),
@@ -418,7 +421,7 @@ private fun BackupPane(vm: MainViewModel?) {
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SpeedHistoryPane(vm: MainViewModel, results: List<SpeedResult>) {
+internal fun SpeedHistoryPane(vm: MainViewModel, results: List<SpeedResult>) {
     val context = LocalContext.current
     val fmtT = remember { SimpleDateFormat("HH:mm:ss", Locale.US) }
     val visible = remember(results) { results }

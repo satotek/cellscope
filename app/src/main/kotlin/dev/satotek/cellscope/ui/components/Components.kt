@@ -35,7 +35,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun Panel(modifier: Modifier = Modifier, title: String? = null, accent: Color? = null, padding: androidx.compose.ui.unit.Dp = 18.dp, content: @Composable ColumnScope.() -> Unit) {
+fun Panel(modifier: Modifier = Modifier, title: String? = null, accent: Color? = null, padding: androidx.compose.ui.unit.Dp = 18.dp, titleTrailing: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier
             .fillMaxWidth()
@@ -44,9 +44,14 @@ fun Panel(modifier: Modifier = Modifier, title: String? = null, accent: Color? =
             .padding(padding)
     ) {
         if (title != null) {
-            Row(Modifier.padding(horizontal = if (padding == 0.dp) 16.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = if (padding == 0.dp) 16.dp else 0.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (accent != null) Box(Modifier.size(8.dp).clip(CircleShape).background(accent)); if (accent != null) Spacer(Modifier.width(8.dp))
-                Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, color = Palette.textDim,
+                    modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (titleTrailing != null) {
+                    Spacer(Modifier.width(8.dp))
+                    titleTrailing()
+                }
             }
             Spacer(Modifier.height(10.dp))
         }

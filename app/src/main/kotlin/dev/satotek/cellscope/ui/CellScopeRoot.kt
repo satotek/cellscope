@@ -13,7 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -52,7 +55,7 @@ import dev.satotek.cellscope.ui.screens.MoreScreen
 import dev.satotek.cellscope.ui.screens.OverviewScreen
 import dev.satotek.cellscope.ui.screens.PipHud
 import dev.satotek.cellscope.ui.screens.SignalScreen
-import dev.satotek.cellscope.ui.screens.StatsScreen
+import dev.satotek.cellscope.ui.screens.CommunicationScreen
 import dev.satotek.cellscope.ui.snapshot.SnapshotCaptureHost
 import dev.satotek.cellscope.ui.theme.Palette
 
@@ -60,7 +63,7 @@ private enum class Tab(@param:StringRes val labelRes: Int, val icon: ImageVector
     OVERVIEW(R.string.tab_home, Icons.Filled.CellTower),
     CELLS(R.string.tab_cells, Icons.Filled.ViewList),
     SIGNAL(R.string.tab_signal, Icons.Filled.ShowChart),
-    STATS(R.string.tab_stats, Icons.Outlined.BarChart),
+    COMMUNICATION(R.string.tab_communication, Icons.Outlined.Speed),
     MORE(R.string.tab_more, Icons.Outlined.MoreHoriz),
 }
 
@@ -79,12 +82,25 @@ fun CellScopeRoot(
     val recording by vm.recordingFlow.collectAsStateWithLifecycle()
     val snapshotState by vm.snapshotState.collectAsStateWithLifecycle()
     val snapshotRender by vm.snapshotRender.collectAsStateWithLifecycle()
-    val speedProgress by vm.speedState.collectAsStateWithLifecycle()
-    val speedResults by vm.speedResults.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var switchHintShown by rememberSaveable { mutableStateOf(false) }
     val copyLabel = stringResource(R.string.snapshot_copy_image)
+
+    val selectSub: (Int) -> Unit = { subId ->
+        if (subId != state.sim?.subId) {
+            vm.setSelectedSub(subId)
+            val label = state.sims.firstOrNull { it.subId == subId }?.label.orEmpty()
+            val message = context.getString(if (switchHintShown) R.string.sim_switched else R.string.sim_switched_reset, label)
+            switchHintShown = true
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
 
     // Probe root once at startup; harmless if su is absent.
     LaunchedEffect(Unit) { vm.probeRoot() }
@@ -117,6 +133,11 @@ fun CellScopeRoot(
 
     Scaffold(
         containerColor = Palette.bg,
+        floatingActionButton = {
+            if (state.permissionsGranted && Tab.entries[tab] in listOf(Tab.OVERVIEW, Tab.CELLS, Tab.SIGNAL)) {
+                dev.satotek.cellscope.ui.components.SimSelector(state.sims, state.sim?.subId, selectSub)
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             ShortNavigationBar {
@@ -151,18 +172,15 @@ fun CellScopeRoot(
                         state,
                         capturing = snapshotState is SnapshotState.Capturing,
                         onShowAllCells = { tab = Tab.CELLS.ordinal },
+                        onSelectSub = selectSub,
                         onEnterPip = onEnterPip,
                         onTakeSnapshot = { vm.takeSnapshot() },
                         recording = recording,
                         onToggleRecording = { vm.toggleRecording() },
-                        speedProgress = speedProgress,
-                        lastSpeed = speedResults.firstOrNull(),
-                        onStartSpeedTest = { vm.startSpeedTest() },
-                        onCancelSpeedTest = { vm.cancelSpeedTest() },
                     )
-                    Tab.CELLS -> CellsScreen(state, onSelectSub = vm::setSelectedSub)
-                    Tab.SIGNAL -> SignalScreen(state, onSelectSub = vm::setSelectedSub)
-                    Tab.STATS -> StatsScreen(state)
+                    Tab.CELLS -> CellsScreen(state)
+                    Tab.SIGNAL -> SignalScreen(state)
+                    Tab.COMMUNICATION -> CommunicationScreen(vm, state)
                     Tab.MORE -> MoreScreen(vm, state, onExit = onExit)
                 }
             }

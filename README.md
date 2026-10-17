@@ -5,11 +5,13 @@ Kotlin + Jetpack Compose（Material 3 Expressive）のネイティブアプリ�
 
 ## 機能
 
-- **ホーム**: serving セル（RSRP / RSRQ / SINR / CQI / TA、PCI / TAC / ECI / NCI、バンド・周波数）、CA 構成（LTE nCC + NR mCC、帯域幅）、近隣セル、ネットワーク状態（NR state / EN-DC / IMS / VoNR）、スループット・RTT
+- **ホーム**: serving セル（RSRP / RSRQ / SINR / CQI / TA、PCI / TAC / ECI / NCI、バンド・周波数）、CA 構成（LTE nCC + NR mCC、帯域幅）、ネットワーク状態（NR state / EN-DC / IMS / VoNR）
+- **両SIMサマリー**: ホームで各SIMの通信方式・RSRP・5G状態を同時表示。タップで詳細の観測対象を切替
 - **訪問セル**: 選択中SIMの接続セルを端末内に蓄積。初回・最終観測、最高RSRP、観測回数、検索・メモ、ZIPバックアップ
 - **セル一覧**: 見えているセル全部を RAT ごとに
-- **電波**: RSRP / RSRQ / SINR / スループット / RTT / 近隣セルの時系列（2m〜60m）、セル変更イベント、タップでその時点の詳細
-- **統計**: 在圏バンド比率、品質分布、CA、スループット / RTT の集計
+- **電波**: RSRP / RSRQ / SINR / 近隣セルの時系列（2m〜60m）、セル変更イベント、タップで拡大グラフと測定詳細、なぞって時刻選択・全画面表示（横向き対応）
+- **通信**: モバイル通信速度・Pingの時系列、NDT7速度測定、測定履歴・CSV共有
+- **統計**（その他）: 在圏バンド比率、品質分布、CA、スループット / RTT の集計
 - **ログ**: CSV + JSONL 記録、後から **再生**（ピンチでズーム）、他端末のログのインポート
 - **スナップショット**: 現在地の地図（OpenStreetMap）付きカード画像を保存・共有（Google フォトにも出る）
 - **PiP / オーバーレイ HUD**: 他アプリを使いながら serving / スループットを常時表示
