@@ -1,6 +1,7 @@
 package dev.satotek.cellscope
 
 import dev.satotek.cellscope.data.model.withNrConnection
+import dev.satotek.cellscope.data.telephony.SimSummaryMonitor
 import dev.satotek.cellscope.data.visits.VisitedCellsStore
 import kotlinx.coroutines.channels.Channel
 import android.annotation.SuppressLint
@@ -57,10 +58,10 @@ private const val SIM_REFRESH_MS = 10_000L
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    // One subscription at a time: a second TelephonyCallback would wake the modem for a radio
-    // that DSDS is not scanning. subId is not saved — it stops meaning anything when the SIM
-    // layout changes, so every process starts on the default data SIM.
+    // Only the selected SIM requests scans; summary listeners are passive on all active SIMs.
+    // subId is transient, so every process starts on the default data SIM.
     private val simsRepo = SimRepository(app)
+    private val summaryMonitor = SimSummaryMonitor(app)
     private val _selectedSub = MutableStateFlow(defaultDataSubId())
     val selectedSub: StateFlow<Int> = _selectedSub
     private var repo = TelephonyRepository(app, _selectedSub.value)
@@ -360,6 +361,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         CellMapper.gnbBits = _gnbBits.value
         bindRepoFlows()
         viewModelScope.launch { simsRepo.sims.collect { onSims(it) } }
+        viewModelScope.launch { summaryMonitor.summaries.collect { summaries -> _state.update { it.copy(simSummaries = summaries) } } }
         viewModelScope.launch {
             visitedStore.reload()
             for (sample in visitSamples) visitedStore.observe(sample)
@@ -378,6 +380,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun onSims(list: List<SimInfo>) {
+        if (repo.hasPermissions()) summaryMonitor.sync(list)
         val selected = _selectedSub.value
         // Switching the data SIM in Settings does not restart this process, so an app the user has
         // not steered would otherwise keep watching the SIM that was default when it launched.
@@ -472,7 +475,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun onPermissionsResult() {
         val ok = repo.hasPermissions()
         _state.update { it.copy(permissionsGranted = ok, privilege = if (repo.isPrivileged()) PrivilegeLevel.PRIV_APP else it.privilege) }
-        if (ok) { simsRepo.start(); repo.start(); startPolling(); startLocation(); if (_pingEnabled.value && pingJob == null) startPing() }
+        if (ok) { simsRepo.start(); summaryMonitor.sync(simsRepo.sims.value); repo.start(); startPolling(); startLocation(); if (_pingEnabled.value && pingJob == null) startPing() }
         refreshRatLock(); refreshConnectivity()
     }
 
@@ -625,6 +628,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (recorder.active) { recorder.stop(); _recordingFlow.value = false }
         runCatching { lm.removeUpdates(locListener) }
         simsRepo.stop()
+        summaryMonitor.stop()
         repo.stop()
         if (_overlayEnabled.value) setOverlayEnabled(false)
     }
@@ -646,6 +650,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         repoJobs.forEach { it.cancel() }
         simsRepo.stop()
+        summaryMonitor.stop()
         repo.stop()
         runCatching { lm.removeUpdates(locListener) }
     }

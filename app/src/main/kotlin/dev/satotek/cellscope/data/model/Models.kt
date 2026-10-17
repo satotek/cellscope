@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.data.model
 
+import dev.satotek.cellscope.data.telephony.SimSummary
 import dev.satotek.cellscope.R
 import dev.satotek.cellscope.data.telephony.SimInfo
 
@@ -160,6 +161,7 @@ data class Snapshot(
     /** Subscription currently being observed. Null until the active-SIM list has been read. */
     val sim: SimInfo? = null,
     val sims: List<SimInfo> = emptyList(),
+    val simSummaries: Map<Int, SimSummary> = emptyMap(),
 ) {
     val serving: CellEntry? get() = cells.firstOrNull { it.isPrimary } ?: cells.firstOrNull { it.registered }
     /** CellInfo rarely flags SCCs; correlate with PhysicalChannelConfig by (PCI, ARFCN) instead. */
