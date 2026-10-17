@@ -12,7 +12,6 @@ Kotlin + Jetpack Compose（Material 3 Expressive）のネイティブアプリ�
 - **ログ**: CSV + JSONL 記録、後から **再生**（ピンチでズーム）、他端末のログのインポート
 - **スナップショット**: 現在地の地図（OpenStreetMap）付きカード画像を保存・共有（Google フォトにも出る）
 - **PiP / オーバーレイ HUD**: 他アプリを使いながら serving / スループットを常時表示
-- **AI に聞く**: 計測要約を ChatGPT / Gemini / Claude に共有、または API キーを入れてアプリ内で回答表示
 - **無線制御**（priv-app / root）: RAT 固定（5G+4G / 5G SA / 4G / 3G …）、Wi‑Fi・機内モード切替、再登録
 - 英語 / 日本語、ライト / ダーク
 

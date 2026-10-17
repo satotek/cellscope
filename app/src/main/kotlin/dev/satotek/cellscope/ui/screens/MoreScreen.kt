@@ -35,7 +35,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material.icons.outlined.DataObject
 import androidx.compose.material.icons.outlined.FiberManualRecord
@@ -151,7 +150,7 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
                     LogsPane(onOpen = { replayPath = it.absolutePath })
                 }
             } else {
-                SubScreen(File(rf).name, onBack = { replayPath = null }) { ReplayScreen(File(rf), speedResults) }
+                SubScreen(File(rf).name, onBack = { replayPath = null }) { ReplayScreen(File(rf)) }
             }
         }
         "speed" -> SubScreen(stringResource(R.string.more_speed), onBack = { sub = null }) {
@@ -176,7 +175,6 @@ private val settingsSections = listOf(
     MoreRow("radio", R.string.group_radio, Icons.Outlined.CellTower),
     MoreRow("privilege", R.string.group_privilege, Icons.Outlined.Security),
     MoreRow("record", R.string.group_record, Icons.Outlined.FiberManualRecord),
-    MoreRow("ai", R.string.group_ai, Icons.Outlined.AutoAwesome),
 )
 private val dataRows = listOf(
     MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
@@ -784,7 +782,6 @@ private val ossNotices = listOf(
     Notice("AndroidX core · activity · lifecycle", "The Android Open Source Project", "Apache-2.0", "https://android.googlesource.com/platform/frameworks/support"),
     Notice("Jetpack Compose · Material 3", "The Android Open Source Project", "Apache-2.0", "https://developer.android.com/jetpack/compose"),
     Notice("Material Symbols", "Google LLC", "Apache-2.0", "https://github.com/google/material-design-icons"),
-    Notice("AndroidX Security Crypto (Tink)", "Google LLC", "Apache-2.0", "https://github.com/google/tink"),
     Notice("OkHttp / Okio", "Square, Inc.", "Apache-2.0", "https://github.com/square/okhttp"),
 )
 

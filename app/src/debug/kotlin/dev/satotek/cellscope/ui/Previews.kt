@@ -9,7 +9,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.satotek.cellscope.data.ai.MeasurementDigest
 import dev.satotek.cellscope.data.model.CarrierComponent
 import dev.satotek.cellscope.data.model.CellEntry
 import dev.satotek.cellscope.data.model.CellEvent
@@ -129,16 +128,4 @@ object PreviewData {
 @Composable fun PreviewReplay() = CellScopeTheme {
     val h = PreviewData.snapshot.history
     ReplayScreen(ReplayData(h, HistoryStore.eventsFrom(h), emptyList()), "cellscope-preview.jsonl")
-}
-
-@Preview(name = "AI digest", showBackground = true, backgroundColor = 0xFF0B0F14, heightDp = 900)
-@Composable fun PreviewAiDigest() = CellScopeTheme {
-    val h = PreviewData.snapshot.history
-    val range = h.first().t..h.last().t
-    Column(Modifier.padding(16.dp)) {
-        Text(
-            MeasurementDigest.build(LocalContext.current, h, HistoryStore.eventsFrom(h), range, Locale.JAPAN),
-            fontFamily = Mono, fontSize = 12.sp, color = Palette.text,
-        )
-    }
 }

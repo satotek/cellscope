@@ -156,7 +156,7 @@ fun CellScopeRoot(
                     )
                     Tab.CELLS -> CellsScreen(state, onSelectSub = vm::setSelectedSub)
                     Tab.SIGNAL -> SignalScreen(state, onSelectSub = vm::setSelectedSub)
-                    Tab.STATS -> StatsScreen(state, logFile = if (recording) vm.logFile else null, speedResults = speedResults)
+                    Tab.STATS -> StatsScreen(state)
                     Tab.MORE -> MoreScreen(vm, state, onExit = onExit)
                 }
             }

@@ -88,7 +88,7 @@ More → ログ → タップで Replay: Signal タブと同じパネル（`Sign
 
 右端は一覧メニュー。3 グループ + 終了:
 
-- **設定**: 計測 / 表示 / 無線 / 権限 / 記録 / AI — 1 グループ = 1 サブ画面（`SettingsScreen(section = …)` で絞る）
+- **設定**: 計測 / 表示 / 無線 / 権限 / 記録 — 1 グループ = 1 サブ画面（`SettingsScreen(section = …)` で絞る）
 - **データ**: ログ / スナップショット — **左スワイプで削除**（Gmail 式、スナックバーで元に戻す。実削除はスナックバーが消えてから）、
   見出しに件数・合計サイズと「すべて削除」。タップで共有 / 再生、長押しでも削除できる。
   ログは **インポート**（SAF、複数選択可。`.csv` / `.jsonl` を `logs/` にコピー、同名は `-1` 連番）で他端末のログも再生できる
@@ -105,8 +105,6 @@ Pixel の設定アプリと同じ「グループ化リスト」形式。説明�
 - **表示**: テーマ（システム / ライト / ダーク、`MainViewModel.themeMode` を Activity とオーバーレイの両方が読む。
   強制テーマ時はステータスバーのアイコン色も `WindowInsetsController` で追従）、
   言語（`LocaleManager.applicationLocales`。OS の「アプリの言語」と同期し、Activity 再生成で即反映）
-- **AI**: プロバイダ / API キー（`EncryptedSharedPreferences`）。キー無しでも Stats / Replay の ✨ から要約の共有・コピーはできる。
-  要約シートの「ログファイルを添付」を入れると共有には CSV が `EXTRA_STREAM` で付き、API 直呼びにはCSV 末尾 150k 文字がプロンプトに入る
 
 ## Data calls（root）
 

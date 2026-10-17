@@ -18,10 +18,6 @@ import java.util.zip.ZipOutputStream
  * signing-key change — getExternalFilesDir() is wiped together with the app, and
  * android:allowBackup="false" means the platform will not restore it either.
  *
- * The AI API key is deliberately NOT included. It lives in its own
- * EncryptedSharedPreferences file ("ai_secrets"); this archive ends up in Drive or on a PC,
- * where the key would sit in plaintext.
- *
  * Layout:
  *   manifest.json        app/version/timestamp/counts
  *   settings.json        typed dump of the "settings" SharedPreferences
@@ -101,7 +97,7 @@ object BackupArchive {
             .put("created", System.currentTimeMillis())
             .put("logs", c.logs)
             .put("snapshots", c.snapshots)
-            .put("secrets", false)   // the AI API key is never in here
+            .put("secrets", false)
     }
 
     // ---- import ---------------------------------------------------------------------------

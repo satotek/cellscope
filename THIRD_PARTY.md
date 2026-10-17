@@ -15,7 +15,6 @@ AndroidX (core, activity, lifecycle) — The Android Open Source Project
 Jetpack Compose (ui, foundation, material3) — The Android Open Source Project
 Material Symbols / Material Icons — Google LLC
   https://github.com/google/material-design-icons
-AndroidX Security Crypto (Tink) — The Android Open Source Project / Google LLC
 OkHttp / Okio — Square, Inc.
   https://github.com/square/okhttp
 

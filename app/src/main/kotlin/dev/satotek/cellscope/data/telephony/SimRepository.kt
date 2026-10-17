@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Active subscriptions only. ICCID and the phone number are never read: logs from this app are
- * shared and sent to an AI, so a subscriber identifier must not enter state.
+ * shared, so a subscriber identifier must not enter state.
  *
  * [subId] is not a stable preference. The list is rebuilt whenever SIMs change, and the UI
  * starts on the default data subscription each process start.
