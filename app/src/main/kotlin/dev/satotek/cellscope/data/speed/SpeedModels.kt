@@ -27,7 +27,7 @@ data class SpeedResult(
     val pci: Int?,
     val rsrp: Int?,
     val viaCellular: Boolean = true,
-    /** Default-data SIM the transfer actually ran on. Absent on results saved before DSDS. */
+    /** Subscription identified on the bound cellular network. Null when unknown or on older results. */
     val subId: Int? = null,
     val simLabel: String? = null,
 ) {

@@ -163,16 +163,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startSpeedTest() {
         if (speedJob?.isActive == true) return
-        val serving = _state.value.serving
+        val startSnapshot = _state.value
+        val serving = startSnapshot.serving?.takeIf {
+            it.timestampNanos > 0 && android.os.SystemClock.elapsedRealtimeNanos() - it.timestampNanos in 0L until 30_000_000_000L
+        }
         val server = _speedServer.value.ifBlank { null }
         speedJob = viewModelScope.launch {
             android.util.Log.i("Speed", "start server=${server ?: "mlab"}")
-            Ndt7Client.run(getApplication(), server, serving).collect { p ->
+            Ndt7Client.run(getApplication(), server, serving, startSnapshot.sim?.subId).collect { p ->
                 _speedState.value = p
                 p.result?.let { r ->
-                    // The bytes always go out on the default data SIM, even when another SIM is on screen.
-                    val dds = _state.value.sims.firstOrNull { it.isDds } ?: _state.value.sim
-                    val stamped = r.copy(subId = dds?.subId, simLabel = dds?.label)
+                    val measuredSim = startSnapshot.sims.firstOrNull { it.subId == r.subId }
+                        ?: _state.value.sims.firstOrNull { it.subId == r.subId }
+                    val stamped = r.copy(simLabel = measuredSim?.label)
+                    _speedState.value = p.copy(result = stamped)
                     val next = (listOf(stamped) + _speedResults.value).take(50)
                     _speedResults.value = next
                     saveSpeedResults(next)

@@ -21,6 +21,10 @@ class CellularBind(
     val network: Network?,
     val viaCellular: Boolean,
 ) {
+    fun subscriptionId(): Int? = network?.let { n ->
+        cm.getNetworkCapabilities(n)?.subscriptionIds?.singleOrNull()
+    }
+
     fun client(userAgent: String): OkHttpClient {
         val b = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

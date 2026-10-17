@@ -38,7 +38,7 @@ object Ndt7Client {
     private const val MSG_MIN = 8 * 1024
     private const val MSG_MAX = 1 * 1024 * 1024
 
-    fun run(context: Context, customServer: String?, serving: CellEntry?): Flow<SpeedProgress> = channelFlow {
+    fun run(context: Context, customServer: String?, serving: CellEntry?, servingSubId: Int? = null): Flow<SpeedProgress> = channelFlow {
         val ver = runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull() ?: "0"
@@ -46,6 +46,9 @@ object Ndt7Client {
         trySend(SpeedProgress(SpeedPhase.LOCATE))
         withContext(Dispatchers.IO) {
         val bound = CellularNetwork.bind(context)
+        val measuredSubId = bound.subscriptionId()
+        // Only attach a cell observed on the same subscription as the bound network.
+        val measuredCell = serving.takeIf { measuredSubId != null && measuredSubId == servingSubId }
         val client = bound.client(ua)
         Log.i(TAG, "viaCellular=${bound.viaCellular} serverPref=${customServer ?: "mlab"}")
         try {
@@ -70,17 +73,20 @@ object Ndt7Client {
             }
             minRtt = minOfRtt(minRtt, ul.minRtt)
 
+            val stableSubId = measuredSubId.takeIf { it == bound.subscriptionId() }
+            val resultCell = measuredCell.takeIf { stableSubId != null }
             val result = SpeedResult(
                 t = startedAt,
                 dlMbps = dl.avg,
                 ulMbps = ul.avg,
                 minRttMs = minRtt,
                 server = ep.label,
-                rat = serving?.rat?.name ?: "—",
-                band = serving?.bandLabel ?: "—",
-                pci = serving?.pci,
-                rsrp = serving?.rsrp,
+                rat = resultCell?.rat?.name ?: "—",
+                band = resultCell?.bandLabel ?: "—",
+                pci = resultCell?.pci,
+                rsrp = resultCell?.rsrp,
                 viaCellular = bound.viaCellular,
+                subId = stableSubId,
             )
             Log.i(TAG, "viaCellular=${bound.viaCellular} server=${ep.label} dl=${result.dlMbps} ul=${result.ulMbps} minRtt=$minRtt")
             trySend(
