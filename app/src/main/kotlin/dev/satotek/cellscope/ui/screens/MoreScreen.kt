@@ -143,6 +143,7 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
             SubScreen(stringResource(settingsSections.first { it.id == sec }.title), onBack = { sub = null }) { setup(sec) }
         }
         else -> when (s) {
+        "visits" -> SubScreen(stringResource(R.string.more_visits), onBack = { sub = null }) { if (vm != null) VisitedCellsScreen(vm) }
         "raw" -> SubScreen(stringResource(R.string.more_raw), onBack = { sub = null }) { RawScreen(state, showTitle = false) }
         "logs" -> {
             val rf = replayPath
@@ -178,6 +179,7 @@ private val settingsSections = listOf(
     MoreRow("record", R.string.group_record, Icons.Outlined.FiberManualRecord),
 )
 private val dataRows = listOf(
+    MoreRow("visits", R.string.more_visits, Icons.Outlined.CellTower),
     MoreRow("logs", R.string.more_logs, Icons.Outlined.Description),
     MoreRow("snapshots", R.string.more_snapshots, Icons.Outlined.PhotoLibrary),
     MoreRow("speed", R.string.more_speed, Icons.Outlined.Speed),
@@ -348,7 +350,7 @@ private fun BackupPane(vm: MainViewModel?) {
                 }
             }
             busy = false
-            message = r.fold({ context.getString(R.string.backup_exported, it.logs, it.snapshots) }, ::fail)
+            message = r.fold({ context.getString(R.string.backup_exported, it.logs, it.snapshots) + context.getString(R.string.backup_visits, it.visits) }, ::fail)
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -363,9 +365,9 @@ private fun BackupPane(vm: MainViewModel?) {
                 }
             }
             busy = false
-            r.onSuccess { if (it.settings) vm?.reloadPrefs() }
+            r.onSuccess { if (it.settings) vm?.reloadPrefs() else vm?.reloadVisitedCells() }
             message = r.fold({ c ->
-                context.getString(R.string.backup_imported, c.logs, c.snapshots) +
+                context.getString(R.string.backup_imported, c.logs, c.snapshots) + context.getString(R.string.backup_visits, c.visits) +
                     if (c.skipped > 0) " · " + context.getString(R.string.backup_skipped, c.skipped) else ""
             }, ::fail)
         }

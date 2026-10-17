@@ -1,6 +1,8 @@
 package dev.satotek.cellscope
 
 import dev.satotek.cellscope.data.model.withNrConnection
+import dev.satotek.cellscope.data.visits.VisitedCellsStore
+import kotlinx.coroutines.channels.Channel
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
@@ -68,6 +70,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _state = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = _state
+    private val visitedStore = VisitedCellsStore(app)
+    val visitedCells = visitedStore.entries
+    val visitStoreFailed = visitedStore.failed
+    private val visitSamples = Channel<Snapshot>(Channel.CONFLATED)
+    fun reloadVisitedCells() = viewModelScope.launch { visitedStore.reload() }
+    fun setVisitNote(key: String, note: String) = viewModelScope.launch { visitedStore.setNote(key, note) }
 
     private val prefs = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -333,6 +341,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         setPipAuto(prefs.getBoolean("pip_auto", true))
         setGnbBits(prefs.getInt("gnb_bits", 24))
         _speedResults.value = loadSpeedResults()
+        viewModelScope.launch { visitedStore.reload() }
         reconcileOverlay()   // permission-gated: never start the service blindly
     }
 
@@ -351,6 +360,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         CellMapper.gnbBits = _gnbBits.value
         bindRepoFlows()
         viewModelScope.launch { simsRepo.sims.collect { onSims(it) } }
+        viewModelScope.launch {
+            visitedStore.reload()
+            for (sample in visitSamples) visitedStore.observe(sample)
+        }
     }
 
     /** Set once the user touches the selector: their pick then outranks a data-SIM change. */
@@ -511,6 +524,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
         HistoryStore.add(sample)
         _state.update { it.copy(history = HistoryStore.samples(), events = HistoryStore.events(), lastUpdate = now, updateCount = it.updateCount + 1).withNrConnection() }
+        visitSamples.trySend(_state.value)
         if (recorder.active) recorder.append(_state.value, sample)
     }
 

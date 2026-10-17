@@ -6,6 +6,7 @@ Kotlin + Jetpack Compose（Material 3 Expressive）のネイティブアプリ�
 ## 機能
 
 - **ホーム**: serving セル（RSRP / RSRQ / SINR / CQI / TA、PCI / TAC / ECI / NCI、バンド・周波数）、CA 構成（LTE nCC + NR mCC、帯域幅）、近隣セル、ネットワーク状態（NR state / EN-DC / IMS / VoNR）、スループット・RTT
+- **訪問セル**: 選択中SIMの接続セルを端末内に蓄積。初回・最終観測、最高RSRP、観測回数、検索・メモ、ZIPバックアップ
 - **セル一覧**: 見えているセル全部を RAT ごとに
 - **電波**: RSRP / RSRQ / SINR / スループット / RTT / 近隣セルの時系列（2m〜60m）、セル変更イベント、タップでその時点の詳細
 - **統計**: 在圏バンド比率、品質分布、CA、スループット / RTT の集計

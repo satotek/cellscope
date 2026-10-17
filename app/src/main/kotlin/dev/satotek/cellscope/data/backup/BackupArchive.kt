@@ -23,6 +23,7 @@ import java.util.zip.ZipOutputStream
  *   settings.json        typed dump of the "settings" SharedPreferences
  *   logs/        cellscope-*.csv and .jsonl
  *   snapshots/   cellscope-*.png and .json
+ *   visits/      visited-cell ledger JSON
  */
 object BackupArchive {
     const val MIME = "application/zip"
@@ -30,12 +31,13 @@ object BackupArchive {
 
     /** dir name -> file extensions accepted on the way back in. */
     private val DIRS = mapOf(
+        "visits" to setOf("json"),
         "logs" to setOf("csv", "jsonl"),
         "snapshots" to setOf("png", "json"),
     )
 
-    data class Counts(val logs: Int = 0, val snapshots: Int = 0, val settings: Boolean = false, val skipped: Int = 0) {
-        val empty get() = logs == 0 && snapshots == 0 && !settings
+    data class Counts(val logs: Int = 0, val snapshots: Int = 0, val settings: Boolean = false, val skipped: Int = 0, val visits: Int = 0) {
+        val empty get() = logs == 0 && snapshots == 0 && visits == 0 && !settings
     }
 
     fun suggestedName(): String =
@@ -46,6 +48,7 @@ object BackupArchive {
     fun export(context: Context, out: OutputStream): Counts {
         var logs = 0
         var snaps = 0
+        var visits = 0
         ZipOutputStream(out.buffered()).use { zip ->
             DIRS.keys.forEach { d ->
                 File(context.getExternalFilesDir(null), d).listFiles()
@@ -58,9 +61,10 @@ object BackupArchive {
                         // Count the primary file of each pair so the number matches what the lists show.
                         if (f.name.endsWith(".csv", true)) logs++
                         if (f.name.endsWith(".png", true)) snaps++
+                        if (d == "visits") visits++
                     }
             }
-            val counts = Counts(logs, snaps, settings = true)
+            val counts = Counts(logs, snaps, settings = true, visits = visits)
             zip.entry("settings.json", settingsJson(context).toString(2))
             zip.entry("manifest.json", manifest(context, counts).toString(2))
             return counts
@@ -97,6 +101,7 @@ object BackupArchive {
             .put("created", System.currentTimeMillis())
             .put("logs", c.logs)
             .put("snapshots", c.snapshots)
+            .put("visits", c.visits)
             .put("secrets", false)
     }
 
@@ -110,6 +115,7 @@ object BackupArchive {
     fun import(context: Context, input: InputStream, restoreSettings: Boolean): Counts {
         var logs = 0
         var snaps = 0
+        var visits = 0
         var skipped = 0
         var settings = false
         ZipInputStream(input.buffered()).use { zip ->
@@ -126,15 +132,15 @@ object BackupArchive {
                     }
                     DIRS.containsKey(dir) && name.substringAfterLast('.', "").lowercase() in DIRS.getValue(dir) -> {
                         when (write(File(context.getExternalFilesDir(null), dir), name, zip.readBytes())) {
-                            Written.NEW -> { if (name.endsWith(".csv", true)) logs++; if (name.endsWith(".png", true)) snaps++ }
-                            Written.DUPLICATE -> if (name.endsWith(".csv", true) || name.endsWith(".png", true)) skipped++
+                            Written.NEW -> { if (name.endsWith(".csv", true)) logs++; if (name.endsWith(".png", true)) snaps++; if (dir == "visits") visits++ }
+                            Written.DUPLICATE -> if (name.endsWith(".csv", true) || name.endsWith(".png", true) || dir == "visits") skipped++
                         }
                     }
                 }
                 zip.closeEntry()
             }
         }
-        return Counts(logs, snaps, settings, skipped)
+        return Counts(logs, snaps, settings, skipped, visits)
     }
 
     private enum class Written { NEW, DUPLICATE }
