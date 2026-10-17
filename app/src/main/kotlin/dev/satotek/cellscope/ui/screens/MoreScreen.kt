@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.CellTower
@@ -498,8 +499,19 @@ private fun SnapshotsPane() {
                 }
             },
             trailingContent = {
-                IconButton(onClick = { SnapshotWriter.shareJson(context, f) }) {
-                    Icon(Icons.Outlined.DataObject, "JSON", tint = Palette.textDim)
+                Row {
+                    IconButton(onClick = {
+                        val message = runCatching { SnapshotWriter.copyImage(context, f) }.fold(
+                            { context.getString(R.string.snapshot_copied) },
+                            { context.getString(R.string.snapshot_copy_failed) },
+                        )
+                        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Outlined.ContentCopy, stringResource(R.string.snapshot_copy_image), tint = Palette.textDim)
+                    }
+                    IconButton(onClick = { SnapshotWriter.shareJson(context, f) }) {
+                        Icon(Icons.Outlined.DataObject, "JSON", tint = Palette.textDim)
+                    }
                 }
             },
             modifier = Modifier.combinedClickable(

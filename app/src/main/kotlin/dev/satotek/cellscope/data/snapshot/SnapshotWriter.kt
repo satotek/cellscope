@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.data.snapshot
 
+import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.ContentValues
 import android.os.Environment
@@ -69,6 +70,14 @@ object SnapshotWriter {
      * ArrayList there. So the PNG is shared alone; the JSON goes out through [shareJson].
      */
     fun share(context: Context, png: File) = shareOne(context, png, "image/png")
+
+    fun copyImage(context: Context, png: File) {
+        require(png.isFile) { context.getString(R.string.snapshot_copy_failed) }
+        val uri = FileProvider.getUriForFile(context, AUTHORITY, png)
+        // A content URI lets Android grant the paste target read access without embedding the bitmap.
+        context.getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newUri(context.contentResolver, png.name, uri))
+    }
 
     fun shareJson(context: Context, png: File) {
         val json = jsonFile(png)

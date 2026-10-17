@@ -205,4 +205,7 @@
     <string name="backup_imported">復元しました: ログ %1$d · スナップショット %2$d</string>
     <string name="backup_skipped">%1$d 件は既にあるのでスキップ</string>
     <string name="backup_failed">失敗: %1$s</string>
+    <string name="snapshot_copy_image">画像をコピー</string>
+    <string name="snapshot_copied">画像をコピーしました</string>
+    <string name="snapshot_copy_failed">画像をコピーできませんでした</string>
 </resources>

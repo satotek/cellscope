@@ -84,15 +84,21 @@ fun CellScopeRoot(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-    val shareLabel = stringResource(R.string.share)
+    val copyLabel = stringResource(R.string.snapshot_copy_image)
 
     // Probe root once at startup; harmless if su is absent.
     LaunchedEffect(Unit) { vm.probeRoot() }
     LaunchedEffect(snapshotState) {
         when (val st = snapshotState) {
             is SnapshotState.Done -> {
-                val result = snackbarHostState.showSnackbar(st.file.name, shareLabel, withDismissAction = true, duration = SnackbarDuration.Long)
-                if (result == SnackbarResult.ActionPerformed) SnapshotWriter.share(context, st.file)
+                val result = snackbarHostState.showSnackbar(st.file.name, copyLabel, withDismissAction = true, duration = SnackbarDuration.Long)
+                if (result == SnackbarResult.ActionPerformed) {
+                    val message = runCatching { SnapshotWriter.copyImage(context, st.file) }.fold(
+                        { context.getString(R.string.snapshot_copied) },
+                        { context.getString(R.string.snapshot_copy_failed) },
+                    )
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
                 vm.ackSnapshotState()
             }
             is SnapshotState.Error -> {

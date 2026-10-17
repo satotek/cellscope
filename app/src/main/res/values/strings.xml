@@ -221,4 +221,7 @@
     <string name="backup_imported">Restored: %1$d logs, %2$d snapshots</string>
     <string name="backup_skipped">%1$d already present, skipped</string>
     <string name="backup_failed">Failed: %1$s</string>
+    <string name="snapshot_copy_image">Copy image</string>
+    <string name="snapshot_copied">Image copied</string>
+    <string name="snapshot_copy_failed">Could not copy image</string>
 </resources>
