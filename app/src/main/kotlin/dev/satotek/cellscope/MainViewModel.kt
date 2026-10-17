@@ -1,5 +1,6 @@
 package dev.satotek.cellscope
 
+import dev.satotek.cellscope.data.model.withNrConnection
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
@@ -405,7 +406,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 history = emptyList(),
                 events = emptyList(),
                 sim = sim,
-                root = it.root.copy(physicalChannels = emptyList(), physicalChannelsRaw = "", dataCalls = emptyList()),
+                root = it.root.copy(physicalChannels = emptyList(), physicalChannelsRaw = "", physicalChannelsSource = "", physicalChannelsReadAt = 0L, dataCalls = emptyList()),
             )
         }
         if (repo.hasPermissions()) repo.start()
@@ -422,11 +423,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun bindRepoFlows() {
         val r = repo
-        repoJobs += viewModelScope.launch { r.cells.collect { cells -> _state.update { it.copy(cells = cells) } } }
-        repoJobs += viewModelScope.launch { r.network.collect { n -> _state.update { it.copy(network = n) } } }
+        repoJobs += viewModelScope.launch { r.cells.collect { cells -> _state.update { it.copy(cells = cells).withNrConnection() } } }
+        repoJobs += viewModelScope.launch {
+            r.network.collect { n ->
+                _state.update {
+                    val previous = it.network
+                    val sameRadio = previous.dataNetworkType == n.dataNetworkType &&
+                        previous.overrideNetworkType == n.overrideNetworkType
+                    // Public callbacks do not carry the fields supplied by the root probe.
+                    it.copy(network = n.copy(
+                        imsRegistered = n.imsRegistered ?: previous.imsRegistered,
+                        imsTransport = n.imsTransport ?: previous.imsTransport,
+                        nrAnchorPci = if (sameRadio) previous.nrAnchorPci else n.nrAnchorPci,
+                    )).withNrConnection()
+                }
+            }
+        }
         repoJobs += viewModelScope.launch {
             r.physicalChannels.collect { pcc ->
-                if (pcc.isNotEmpty()) _state.update { it.copy(root = it.root.copy(physicalChannels = pcc), privilege = PrivilegeLevel.PRIV_APP) }
+                if (r.physicalChannelCallbackActive) _state.update {
+                    it.copy(root = it.root.copy(physicalChannels = pcc, physicalChannelsSource = "callback", physicalChannelsReadAt = android.os.SystemClock.elapsedRealtime()), privilege = PrivilegeLevel.PRIV_APP).withNrConnection()
+                }
             }
         }
     }
@@ -493,7 +510,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             rttMs = if (_pingEnabled.value) lastRtt else null,
         )
         HistoryStore.add(sample)
-        _state.update { it.copy(history = HistoryStore.samples(), events = HistoryStore.events(), lastUpdate = now, updateCount = it.updateCount + 1) }
+        _state.update { it.copy(history = HistoryStore.samples(), events = HistoryStore.events(), lastUpdate = now, updateCount = it.updateCount + 1).withNrConnection() }
         if (recorder.active) recorder.append(_state.value, sample)
     }
 
@@ -520,7 +537,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setRootEnabled(on: Boolean) {
         _state.update { it.copy(root = it.root.copy(enabled = on)) }
         rootJob?.cancel()
-        if (!on) { _state.update { if (it.privilege == PrivilegeLevel.ROOT) it.copy(privilege = PrivilegeLevel.NORMAL) else it }; return }
+        if (!on) {
+            _state.update {
+                it.copy(privilege = if (it.privilege == PrivilegeLevel.ROOT) PrivilegeLevel.NORMAL else it.privilege,
+                    root = if (repo.physicalChannelCallbackActive) it.root else it.root.copy(
+                        physicalChannels = emptyList(), physicalChannelsSource = "", physicalChannelsReadAt = 0L),
+                ).withNrConnection()
+            }
+            return
+        }
         rootJob = viewModelScope.launch {
             val props = RootProbe.modemProps()
             _state.update { it.copy(root = it.root.copy(modemProps = props)) }
@@ -532,10 +557,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     val log = if (n % 2 == 0) RootProbe.radioLog(phoneId = phoneId) else null
                     // The shell call outlived a SIM switch. Drop it instead of painting the other phone.
                     if (phoneId() != phoneId) return@runCatching
+                    val hasChannelField = RootProbe.fieldForPhone(reg.raw, "mPhysicalChannelConfigs", phoneId) != null
+                    val updateChannels = !repo.physicalChannelCallbackActive && hasChannelField
                     _state.update {
                         it.copy(
                             root = it.root.copy(
-                                physicalChannels = reg.components.ifEmpty { it.root.physicalChannels },
+                                physicalChannels = if (updateChannels) reg.components else it.root.physicalChannels,
+                                physicalChannelsSource = if (updateChannels) "root" else it.root.physicalChannelsSource,
+                                physicalChannelsReadAt = if (updateChannels) android.os.SystemClock.elapsedRealtime() else it.root.physicalChannelsReadAt,
                                 dataCalls = reg.dataCalls,
                                 physicalChannelsRaw = RootProbe.fieldForPhone(reg.raw, "mPhysicalChannelConfigs", phoneId) ?: "",
                                 radioLog = log?.lines ?: it.root.radioLog, lastError = null,
@@ -543,12 +572,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             network = it.network.copy(
                                 imsRegistered = log?.imsTech?.let { t -> t >= 0 } ?: it.network.imsRegistered,
                                 imsTransport = RootProbe.imsTechName(log?.imsTech) ?: it.network.imsTransport,
-                                nrState = RootProbe.nrStateLabel(log?.nrStateMachine) ?: it.network.nrState,
-                                nrStateSource = if (log?.nrStateMachine != null) "root" else it.network.nrStateSource,
                                 nrAnchorPci = log?.anchorNrPci ?: it.network.nrAnchorPci,
                             ),
                             privilege = if (it.privilege == PrivilegeLevel.PRIV_APP) it.privilege else PrivilegeLevel.ROOT,
-                        )
+                        ).withNrConnection()
                     }
                 }.onFailure { e -> _state.update { it.copy(root = it.root.copy(lastError = e.message)) } }
                 n++

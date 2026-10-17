@@ -59,6 +59,8 @@ class TelephonyRepository(
 
     private var callback: TelephonyCallback? = null
     private var privCallback: TelephonyCallback? = null
+    var physicalChannelCallbackActive = false
+        private set
 
     fun hasPermissions(): Boolean =
         context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED &&
@@ -87,13 +89,14 @@ class TelephonyRepository(
         if (_privileged.value && precise) {
             val pcb = PrivListener()
             privCallback = pcb
-            runCatching { tm.registerTelephonyCallback(mainExecutor, pcb) }
+            runCatching { tm.registerTelephonyCallback(mainExecutor, pcb); physicalChannelCallbackActive = true }
                 .onFailure { Log.w(TAG, "privileged callback rejected", it); privCallback = null; _privileged.value = false }
         }
         refresh()
     }
 
     fun stop() {
+        physicalChannelCallbackActive = false
         callback?.let { runCatching { tm.unregisterTelephonyCallback(it) } }
         privCallback?.let { runCatching { tm.unregisterTelephonyCallback(it) } }
         callback = null; privCallback = null
@@ -181,15 +184,8 @@ class TelephonyRepository(
         )
     }
 
-    private fun deriveNrState(dataRat: String, override: String, endc: Boolean?, nrAvail: Boolean?, restricted: Boolean?) = when {
-        dataRat == "NR" -> "SA"
-        override == "NR_ADVANCED" -> "NR_ADV"
-        override == "NR_NSA" -> "CONNECTED"
-        restricted == true -> "RESTRICTED"
-        endc == true && nrAvail == true -> "NOT_RESTRICTED"
-        nrAvail == true -> "NR_AVAIL"
-        else -> "NONE"
-    }
+    private fun deriveNrState(dataRat: String, override: String, endc: Boolean?, nrAvail: Boolean?, restricted: Boolean?) =
+        NrConnection.state(dataRat, override, endc, nrAvail, restricted)
 
     private inner class Listener : TelephonyCallback(),
         TelephonyCallback.CellInfoListener,

@@ -67,7 +67,7 @@ data class NetworkState(
     val serviceState: String = "—",
     val dataNetworkType: String = "—",
     val overrideNetworkType: String = "NONE",   // NR_NSA / NR_ADVANCED / LTE_CA / LTE_ADVANCED_PRO
-    val nrState: String = "—",                  // derived (public) or NetworkTypeController (root)
+    val nrState: String = "—",                  // live radio evidence or advertised availability
     val nrStateSource: String = "",
     val nrAnchorPci: Int? = null,
     val nrFrequencyRange: String = "—",
@@ -139,6 +139,8 @@ data class RootState(
     val modemProps: Map<String, String> = emptyMap(),
     val dataCalls: List<DataCall> = emptyList(),
     val lastError: String? = null,
+    val physicalChannelsSource: String = "",
+    val physicalChannelsReadAt: Long = 0L,
 )
 
 enum class PrivilegeLevel(val labelRes: Int) { NORMAL(R.string.priv_normal), ROOT(R.string.priv_root), PRIV_APP(R.string.priv_privapp) }
