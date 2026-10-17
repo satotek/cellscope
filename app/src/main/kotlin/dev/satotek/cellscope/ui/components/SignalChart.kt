@@ -2,6 +2,9 @@ package dev.satotek.cellscope.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +52,8 @@ fun SignalChart(
     cursorT: Long? = null,           // draws a vertical cursor at this sample time
     onTapSample: ((SignalSample) -> Unit)? = null,
     range: LongRange? = null,        // when set, x-axis is [start, end] and windowMs is ignored
+    scrubEnabled: Boolean = false,
+    onScrubbing: (Boolean) -> Unit = {},
 ) {
     val tm = rememberTextMeasurer()
     val grid = Palette.outline; val dim = Palette.textDim; val hoColor = Palette.wcdma
@@ -58,21 +63,37 @@ fun SignalChart(
     val timeFmtSec = SimpleDateFormat("HH:mm:ss", Locale.US)
 
     val cursorColor = Palette.accent
-    val tapMod = if (onTapSample == null) Modifier else Modifier.pointerInput(samples, windowMs, range) {
-        detectTapGestures { pos ->
-            val now = samples.lastOrNull()?.t ?: return@detectTapGestures
+    val selectSample = rememberUpdatedState(onTapSample)
+    val scrubbing = rememberUpdatedState(onScrubbing)
+    val tapMod = if (onTapSample == null) Modifier else Modifier.pointerInput(samples, windowMs, range, scrubEnabled) {
+        fun select(x: Float) {
+            val now = samples.lastOrNull()?.t ?: return
             val leftPad = 34.dp.toPx(); val rightPad = 40.dp.toPx()
-            val w = size.width - leftPad - rightPad
-            val t0: Long
-            val span: Long
-            if (range != null) {
-                t0 = range.first; span = (range.last - range.first).coerceAtLeast(1)
-            } else {
-                t0 = now - windowMs; span = windowMs
+            val w = (size.width - leftPad - rightPad).coerceAtLeast(1f)
+            val t0 = range?.first ?: (now - windowMs)
+            val span = range?.let { (it.last - it.first).coerceAtLeast(1) } ?: windowMs
+            val t = t0 + (((x - leftPad) / w).coerceIn(0f, 1f) * span).toLong()
+            val pool = samples.filter { it.t in t0..(t0 + span) }
+            pool.minByOrNull { kotlin.math.abs(it.t - t) }?.let { selectSample.value?.invoke(it) }
+        }
+        if (scrubEnabled) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                down.consume()
+                scrubbing.value(true)
+                try {
+                    select(down.position.x)
+                    do {
+                        val event = awaitPointerEvent()
+                        event.changes.firstOrNull { it.id == down.id && it.pressed }?.let { select(it.position.x) }
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                } finally {
+                    scrubbing.value(false)
+                }
             }
-            val t = t0 + ((pos.x - leftPad) / w * span).toLong()
-            val pool = if (range != null) samples.filter { it.t in range } else samples
-            pool.minByOrNull { kotlin.math.abs(it.t - t) }?.let(onTapSample)
+        } else {
+            detectTapGestures { select(it.x) }
         }
     }
     Canvas(modifier.fillMaxWidth().height(heightDp.dp).then(tapMod)) {
@@ -106,13 +127,9 @@ fun SignalChart(
             drawText(txt, topLeft = Offset(plot.left - txt.size.width - 4.dp.toPx(), yy - txt.size.height / 2))
             g += yStep
         }
-        // time ticks: live view stays 1-minute; ranged view picks a step from the span
-        val tickStep = if (range == null) 60_000L else when {
-            span <= 2 * 60_000L -> 10_000L
-            span <= 10 * 60_000L -> 60_000L
-            span <= 60 * 60_000L -> 5 * 60_000L
-            else -> 15 * 60_000L
-        }
+        // Keep time labels legible for both live and replay windows.
+        val tickStep = listOf(1L, 5L, 15L, 30L, 60L, 120L, 300L, 900L, 1800L, 3600L, 21600L)
+            .map { it * 1_000L }.firstOrNull { it >= span / 5 } ?: (span / 5).coerceAtLeast(1L)
         val tickFmt = if (tickStep < 60_000L) timeFmtSec else timeFmt
         var tick = (t0 / tickStep + 1) * tickStep
         while (tick <= t1) {

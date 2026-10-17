@@ -103,6 +103,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
     val ve = viewEnd.longValue
     val range = vs..ve
     var selectedT by remember { mutableStateOf<Long?>(null) }
+    var selectedMetric by remember { mutableStateOf("RSRP") }
     val onTap: (SignalSample) -> Unit = { selectedT = it.t }
     val vis = h.filter { it.t in range }
     val last = h.lastOrNull()
@@ -228,19 +229,19 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                         SignalChart(h, events, listOfNotNull(
                             Series("serving", servingColor) { it.rsrp },
                             if (hasNr) Series("NR SCC", Palette.nr) { it.nrRsrp } else null,
-                        ), -140, -60, 20, zonesRsrp, cursorT = selectedT, onTapSample = onTap, range = range)
+                        ), -140, -60, 20, zonesRsrp, cursorT = selectedT, onTapSample = { selectedMetric = "RSRP"; onTap(it) }, range = range)
                     }
                     ChartPanel("RSRQ", "dB", last?.rsrq, Palette.rsrq(last?.rsrq), hasNr, last?.nrRsrq, servingColor = servingColor) {
                         SignalChart(h, events, listOfNotNull(
                             Series("serving", servingColor) { it.rsrq },
                             if (hasNr) Series("NR SCC", Palette.nr) { it.nrRsrq } else null,
-                        ), -25, 0, 5, zonesRsrq, heightDp = 150, cursorT = selectedT, onTapSample = onTap, range = range)
+                        ), -25, 0, 5, zonesRsrq, heightDp = 150, cursorT = selectedT, onTapSample = { selectedMetric = "RSRQ"; onTap(it) }, range = range)
                     }
                     ChartPanel("SINR", "dB", last?.sinr, Palette.sinr(last?.sinr), hasNr, last?.nrSinr, servingColor = servingColor) {
                         SignalChart(h, events, listOfNotNull(
                             Series("serving", servingColor) { it.sinr },
                             if (hasNr) Series("NR SCC", Palette.nr) { it.nrSinr } else null,
-                        ), -10, 30, 10, zonesSinr, heightDp = 150, cursorT = selectedT, onTapSample = onTap, range = range)
+                        ), -10, 30, 10, zonesSinr, heightDp = 150, cursorT = selectedT, onTapSample = { selectedMetric = "SINR"; onTap(it) }, range = range)
                     }
                     run {
                         val maxMbps = (vis.maxOfOrNull { maxOf(it.rxBps ?: 0, it.txBps ?: 0) } ?: 0L) / 1_000_000.0
@@ -300,7 +301,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
         if (events.isEmpty()) item { Text("—", fontFamily = Mono, color = Palette.textDim) }
         items(events.asReversed().take(30)) { EventRow(it) }
     }
-    selectedT?.let { t -> if (h.isNotEmpty()) SampleSheet(h, events, t, onDismiss = { selectedT = null }) }
+    selectedT?.let { t -> if (h.isNotEmpty()) SampleSheet(h, events, t, onDismiss = { selectedT = null }, initialMetric = selectedMetric) }
 }
 
 private fun fmtMs(v: Double?): String = v?.let { String.format(Locale.US, "%.0f", it) } ?: "—"

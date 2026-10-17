@@ -223,4 +223,14 @@
     <string name="visits_last">最終：%1$s</string>
     <string name="visits_add_note">タップしてメモを追加</string>
     <string name="backup_visits"> · 台帳%1$dファイル</string>
+    <string name="signal_minutes">%1$d分</string>
+    <string name="signal_serving">接続セル</string>
+    <string name="signal_neighbours_short">近隣セル</string>
+    <string name="signal_changes_near">前後30秒のセル切替</string>
+    <string name="signal_fullscreen">全画面で表示</string>
+    <string name="signal_exit_fullscreen">測定詳細に戻る</string>
+    <string name="signal_frozen_hint">グラフをなぞって時刻を選択 · 開いた時点の履歴</string>
+    <string name="signal_inspect_chart">%1$sグラフ、選択時刻 %2$s</string>
+    <string name="signal_previous_sample">前の測定</string>
+    <string name="signal_next_sample">次の測定</string>
 </resources>
