@@ -9,6 +9,8 @@ class CellScopeApp : Application() {
         deleteSharedPreferences("ai_secrets")
     }
 
+    private val dependencies by lazy { AppDependencies(this) }
+
     /** Process-wide VM so the overlay HUD keeps polling after the activity is backgrounded. */
-    val vm: MainViewModel by lazy { MainViewModel(this) }
+    val vm: MainViewModel by lazy { MainViewModel(dependencies) }
 }

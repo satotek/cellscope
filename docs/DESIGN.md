@@ -6,7 +6,12 @@ README はアプリの説明にとどめ、実装の判断・落とし穴はこ�
 
 ```
 app/src/main/kotlin/dev/satotek/cellscope/
-├── MainActivity.kt / MainViewModel.kt   権限、ポーリング、履歴、root切替
+├── CellScopeApp.kt / AppDependencies.kt  プロセス単位の依存生成・共有
+├── MainActivity.kt / MainViewModel.kt   権限、画面状態、ポーリング、root切替
+├── data/settings/SettingsStore.kt       設定・速度履歴の保存（既存バックアップ形式を維持）
+├── data/location/LocationRepository.kt   GPS権限確認、購読・解除
+├── data/DeviceRepository.kt             Contextが必要な端末APIの窓口
+├── data/speed/SpeedTestController.kt     速度測定セッション、履歴、CSV出力
 ├── data/model/Models.kt                 CellEntry / CarrierComponent / NetworkState / Snapshot
 ├── data/telephony/
 │   ├── TelephonyRepository.kt           TelephonyCallback + requestCellInfoUpdate、ServiceState文字列パース
@@ -19,6 +24,14 @@ app/src/main/kotlin/dev/satotek/cellscope/
 └── ui/                                  Compose: Home / Cells / Signal / Raw / Setup
 ksu-module/                              /system/priv-app + privapp-permissions allowlist
 ```
+
+`MainViewModel` は通常の `ViewModel` を継承し、`Application` / `Context` を直接保持しない。
+`CellScopeApp` が生成する `AppDependencies` からデータ層を渡す手動DI構成。
+Activityとオーバーレイの計測を共有するため、ViewModelの所有範囲は引き続きプロセス単位とする。
+設定キー・速度履歴JSON・バックアップ形式は維持する。
+速度測定はCoroutineScope・計測関数・保存先・時計を注入でき、実通信なしで
+SIM帰属、キャンセル、履歴上限・削除・再読み込み、CSVの単体テストを実行する。
+Composeの `ui-tooling` はdebugビルドに限定する。
 
 ## priv-app モジュール
 

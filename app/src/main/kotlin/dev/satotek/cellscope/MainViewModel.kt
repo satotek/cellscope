@@ -1,45 +1,27 @@
 package dev.satotek.cellscope
 
 import dev.satotek.cellscope.data.model.withNrConnection
-import dev.satotek.cellscope.data.telephony.SimSummaryMonitor
-import dev.satotek.cellscope.data.visits.VisitedCellsStore
 import kotlinx.coroutines.channels.Channel
-import android.annotation.SuppressLint
-import android.app.Application
-import android.content.Context
-import android.location.Location
-import android.telephony.SubscriptionManager
-import android.location.LocationListener
-import android.location.LocationManager
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.net.TrafficStats
 import android.graphics.Bitmap
 import dev.satotek.cellscope.data.HistoryStore
-import dev.satotek.cellscope.data.LogRecorder
 import dev.satotek.cellscope.data.Pinger
 import dev.satotek.cellscope.data.model.NbSample
 import dev.satotek.cellscope.data.model.NetworkState
 import dev.satotek.cellscope.data.model.ccSplit
-import dev.satotek.cellscope.data.model.PingStats
 import dev.satotek.cellscope.data.model.PrivilegeLevel
-import dev.satotek.cellscope.data.model.RootState
 import dev.satotek.cellscope.data.model.SignalSample
 import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.data.root.PrivAppInstaller
 import dev.satotek.cellscope.data.root.RootProbe
 import dev.satotek.cellscope.data.root.RootShell
-import dev.satotek.cellscope.data.snapshot.OsmTiles
-import dev.satotek.cellscope.data.snapshot.SnapshotWriter
-import dev.satotek.cellscope.data.speed.Ndt7Client
-import dev.satotek.cellscope.data.speed.SpeedProgress
+import dev.satotek.cellscope.data.speed.SpeedTestController
 import dev.satotek.cellscope.data.speed.SpeedResult
 import dev.satotek.cellscope.data.telephony.CellMapper
 import dev.satotek.cellscope.data.telephony.RatLock
 import dev.satotek.cellscope.data.telephony.SimInfo
-import dev.satotek.cellscope.data.telephony.SimRepository
-import dev.satotek.cellscope.data.telephony.TelephonyRepository
-import dev.satotek.cellscope.overlay.OverlayService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -50,37 +32,36 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.json.JSONArray
 import java.io.File
 
 /** The SIM list is event-driven; this is only the fallback re-read interval for a DDS switch. */
 private const val SIM_REFRESH_MS = 10_000L
 
-class MainViewModel(app: Application) : AndroidViewModel(app) {
+class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
 
     // Only the selected SIM requests scans; summary listeners are passive on all active SIMs.
     // subId is transient, so every process starts on the default data SIM.
-    private val simsRepo = SimRepository(app)
-    private val summaryMonitor = SimSummaryMonitor(app)
-    private val _selectedSub = MutableStateFlow(defaultDataSubId())
+    private val simsRepo = dependencies.sims
+    private val summaryMonitor = dependencies.simSummaries
+    private val _selectedSub = MutableStateFlow(dependencies.device.defaultDataSubId())
     val selectedSub: StateFlow<Int> = _selectedSub
-    private var repo = TelephonyRepository(app, _selectedSub.value)
+    private var repo = dependencies.telephony(_selectedSub.value)
     private val repoJobs = ArrayList<Job>()
-    private val recorder = LogRecorder(app)
-    private val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    private val recorder = dependencies.recorder
+    private val locationSource = dependencies.location
 
     private val _state = MutableStateFlow(Snapshot())
     val state: StateFlow<Snapshot> = _state
-    private val visitedStore = VisitedCellsStore(app)
+    private val visitedStore = dependencies.visits
     val visitedCells = visitedStore.entries
     val visitStoreFailed = visitedStore.failed
     private val visitSamples = Channel<Snapshot>(Channel.CONFLATED)
     fun reloadVisitedCells() = viewModelScope.launch { visitedStore.reload() }
     fun setVisitNote(key: String, note: String) = viewModelScope.launch { visitedStore.setNote(key, note) }
 
-    private val prefs = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    private val settings = dependencies.settings
 
-    private val _pollIntervalMs = MutableStateFlow(prefs.getLong("poll_ms", 1000L))
+    private val _pollIntervalMs = MutableStateFlow(settings.pollIntervalMs)
     val pollIntervalMs: StateFlow<Long> = _pollIntervalMs
     val recording get() = recorder.active
     val logFile get() = recorder.file
@@ -90,9 +71,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastRx = -1L; private var lastTx = -1L; private var lastTrafficT = 0L
     private var lastSimRefresh = 0L
 
-    private val _pingHost = MutableStateFlow(prefs.getString("ping_host", null) ?: "1.1.1.1")
+    private val _pingHost = MutableStateFlow(settings.pingHost)
     val pingHost: StateFlow<String> = _pingHost
-    private val _pingEnabled = MutableStateFlow(prefs.getBoolean("ping_on", true))
+    private val _pingEnabled = MutableStateFlow(settings.pingEnabled)
     val pingEnabled: StateFlow<Boolean> = _pingEnabled
     @Volatile private var lastRtt: Double? = null
     private var pingJob: Job? = null
@@ -107,8 +88,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (_state.value.root.available == true) _privApp.value = PrivAppInstaller.state(repo.isPrivileged())
     }
     fun installPrivApp() = viewModelScope.launch {
-        val v = runCatching { getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0).versionName }.getOrNull() ?: "0"
-        _privAppError.value = PrivAppInstaller.install(getApplication(), v)
+        _privAppError.value = dependencies.device.installPrivApp()
         refreshPrivApp()
     }
     fun uninstallPrivApp() = viewModelScope.launch { _privAppError.value = PrivAppInstaller.uninstall(); refreshPrivApp() }
@@ -138,11 +118,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _reconnecting = MutableStateFlow(false)
     val reconnecting: StateFlow<Boolean> = _reconnecting
 
-    @Suppress("DEPRECATION")
     fun refreshConnectivity() {
-        val app = getApplication<Application>()
-        _wifiOn.value = runCatching { (app.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager).isWifiEnabled }.getOrDefault(false)
-        _airplaneOn.value = android.provider.Settings.Global.getInt(app.contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) == 1
+        val connectivity = dependencies.device.connectivity()
+        _wifiOn.value = connectivity.wifiOn
+        _airplaneOn.value = connectivity.airplaneOn
     }
     fun setWifi(on: Boolean) = viewModelScope.launch {
         RootShell.run("svc wifi ${if (on) "enable" else "disable"}", 5); delay(500); refreshConnectivity()
@@ -158,114 +137,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refreshConnectivity(); _reconnecting.value = false
     }
 
-    fun setPingHost(h: String) { _pingHost.value = h.trim(); prefs.edit().putString("ping_host", h.trim()).apply() }
-    fun setPingEnabled(on: Boolean) { _pingEnabled.value = on; prefs.edit().putBoolean("ping_on", on).apply(); if (on) startPing() else { pingJob?.cancel(); lastRtt = null } }
+    fun setPingHost(h: String) { _pingHost.value = h.trim(); settings.pingHost = h.trim() }
+    fun setPingEnabled(on: Boolean) { _pingEnabled.value = on; settings.pingEnabled = on; if (on) startPing() else { pingJob?.cancel(); lastRtt = null } }
 
-    private val _speedServer = MutableStateFlow(prefs.getString("speed_server", "") ?: "")
+    private val _speedServer = MutableStateFlow(settings.speedServer)
     val speedServer: StateFlow<String> = _speedServer
-    fun setSpeedServer(s: String) { _speedServer.value = s.trim(); prefs.edit().putString("speed_server", s.trim()).apply() }
+    fun setSpeedServer(s: String) { _speedServer.value = s.trim(); settings.speedServer = s.trim() }
 
-    private val _speedState = MutableStateFlow<SpeedProgress?>(null)
-    val speedState: StateFlow<SpeedProgress?> = _speedState
-    private val _speedResults = MutableStateFlow(loadSpeedResults())
-    val speedResults: StateFlow<List<SpeedResult>> = _speedResults
-    private var speedJob: Job? = null
+    private val speed = SpeedTestController(
+        viewModelScope, settings, { _state.value }, { _speedServer.value },
+        android.os.SystemClock::elapsedRealtimeNanos,
+        dependencies.device::measureSpeed,
+    )
+    val speedState = speed.speedState
+    val speedResults = speed.speedResults
+    fun startSpeedTest() = speed.start()
+    fun cancelSpeedTest() = speed.cancel()
+    fun deleteSpeedResult(result: SpeedResult) = speed.delete(result)
+    fun writeSpeedCsv(dir: File) = speed.writeSpeedCsv(dir)
 
-    fun startSpeedTest() {
-        if (speedJob?.isActive == true) return
-        val startSnapshot = _state.value
-        val serving = startSnapshot.serving?.takeIf {
-            it.timestampNanos > 0 && android.os.SystemClock.elapsedRealtimeNanos() - it.timestampNanos in 0L until 30_000_000_000L
-        }
-        val server = _speedServer.value.ifBlank { null }
-        speedJob = viewModelScope.launch {
-            android.util.Log.i("Speed", "start server=${server ?: "mlab"}")
-            Ndt7Client.run(getApplication(), server, serving, startSnapshot.sim?.subId).collect { p ->
-                _speedState.value = p
-                p.result?.let { r ->
-                    val measuredSim = startSnapshot.sims.firstOrNull { it.subId == r.subId }
-                        ?: _state.value.sims.firstOrNull { it.subId == r.subId }
-                    val stamped = r.copy(simLabel = measuredSim?.label)
-                    _speedState.value = p.copy(result = stamped)
-                    val next = (listOf(stamped) + _speedResults.value).take(50)
-                    _speedResults.value = next
-                    saveSpeedResults(next)
-                }
-            }
-        }
-    }
-    fun cancelSpeedTest() {
-        speedJob?.cancel()
-        speedJob = null
-        _speedState.value = null
-    }
-    fun deleteSpeedResult(r: SpeedResult) {
-        val next = _speedResults.value.filter { it.t != r.t }
-        _speedResults.value = next
-        saveSpeedResults(next)
-    }
-    fun writeSpeedCsv(dir: File): File {
-        val f = File(dir, "speed.csv")
-        val rows = _speedResults.value
-        val sb = StringBuilder("time,dl_mbps,ul_mbps,min_rtt_ms,server,rat,band,pci,rsrp,via_cellular,sub,sim_label\n")
-        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
-        rows.asReversed().forEach { r ->
-            sb.append(fmt.format(java.util.Date(r.t))).append(',')
-            sb.append(r.dlMbps).append(',').append(r.ulMbps).append(',')
-            sb.append(r.minRttMs ?: "").append(',')
-            sb.append('"').append(r.server.replace("\"", "'")).append('"').append(',')
-            sb.append(r.rat).append(',').append(r.band).append(',')
-            sb.append(r.pci ?: "").append(',').append(r.rsrp ?: "").append(',')
-            sb.append(r.viaCellular).append(',')
-            sb.append(r.subId ?: "").append(',')
-            sb.append(csvField(r.simLabel ?: "")).append('\n')
-        }
-        f.writeText(sb.toString())
-        return f
-    }
-    private fun loadSpeedResults(): List<SpeedResult> {
-        val raw = prefs.getString("speed_results", null) ?: return emptyList()
-        return runCatching {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).map { SpeedResult.fromJson(arr.getJSONObject(it)) }
-        }.getOrDefault(emptyList())
-    }
-    private fun saveSpeedResults(list: List<SpeedResult>) {
-        val arr = JSONArray()
-        list.forEach { arr.put(it.toJson()) }
-        prefs.edit().putString("speed_results", arr.toString()).apply()
-    }
+    /** "system" | "light" | "dark" — read by every CellScopeTheme host (activity, overlay). */
+    private val _themeMode = MutableStateFlow(settings.themeMode)
+    val themeMode: StateFlow<String> = _themeMode
+    fun setThemeMode(mode: String) { _themeMode.value = mode; settings.themeMode = mode }
 
     /** Home gesture enters PiP. Default on; the header icon still works when this is off. */
-    /** "system" | "light" | "dark" — read by every CellScopeTheme host (activity, overlay). */
-    private val _themeMode = MutableStateFlow(prefs.getString("theme", "system") ?: "system")
-    val themeMode: StateFlow<String> = _themeMode
-    fun setThemeMode(mode: String) { _themeMode.value = mode; prefs.edit().putString("theme", mode).apply() }
-
-    private val _pipAuto = MutableStateFlow(prefs.getBoolean("pip_auto", true))
+    private val _pipAuto = MutableStateFlow(settings.pipAuto)
     val pipAuto: StateFlow<Boolean> = _pipAuto
-    fun setPipAuto(on: Boolean) { _pipAuto.value = on; prefs.edit().putBoolean("pip_auto", on).apply() }
+    fun setPipAuto(on: Boolean) { _pipAuto.value = on; settings.pipAuto = on }
 
-    private val _overlayEnabled = MutableStateFlow(prefs.getBoolean("overlay", false))
+    private val _overlayEnabled = MutableStateFlow(settings.overlayEnabled)
     val overlayEnabled: StateFlow<Boolean> = _overlayEnabled
     fun setOverlayEnabled(on: Boolean) {
         _overlayEnabled.value = on
-        prefs.edit().putBoolean("overlay", on).apply()
-        val app = getApplication<Application>()
-        if (on) OverlayService.start(app) else OverlayService.stop(app)
+        settings.overlayEnabled = on
+        dependencies.device.setOverlayEnabled(on)
     }
     /** After returning from the overlay-permission screen: start if granted, otherwise drop the pref. */
     fun reconcileOverlay() {
-        val app = getApplication<Application>()
-        val want = prefs.getBoolean("overlay", false)
-        val can = android.provider.Settings.canDrawOverlays(app)
+        val want = settings.overlayEnabled
+        val can = dependencies.device.canDrawOverlays()
         if (want && can) {
             _overlayEnabled.value = true
-            OverlayService.start(app)
+            dependencies.device.setOverlayEnabled(true)
         } else if (want && !can) {
             _overlayEnabled.value = false
-            prefs.edit().putBoolean("overlay", false).apply()
-            OverlayService.stop(app)
+            settings.overlayEnabled = false
+            dependencies.device.setOverlayEnabled(false)
         }
     }
 
@@ -287,7 +205,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val takenAt = System.currentTimeMillis()
             val map = withTimeoutOrNull(5_000) {
                 val loc = snap.location ?: return@withTimeoutOrNull null
-                withContext(Dispatchers.IO) { OsmTiles.fetch(getApplication(), loc.first, loc.second) }
+                withContext(Dispatchers.IO) { dependencies.device.fetchMap(loc.first, loc.second) }
             }
             _snapshotRender.value = SnapshotRenderRequest(snap, map, takenAt)
         }
@@ -298,7 +216,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    SnapshotWriter.write(getApplication(), bitmap, req.snapshot, req.takenAt)
+                    dependencies.device.writeSnapshot(bitmap, req.snapshot, req.takenAt)
                 }
             }
             _snapshotRender.value = null
@@ -320,11 +238,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** gNB identifier length used to split NCI into gNB / cell (operator-specific, 22..32). */
-    private val _gnbBits = MutableStateFlow(prefs.getInt("gnb_bits", 24))
+    private val _gnbBits = MutableStateFlow(settings.gnbBits)
     val gnbBits: StateFlow<Int> = _gnbBits
     fun setGnbBits(bits: Int) {
         val b = bits.coerceIn(22, 32)
-        _gnbBits.value = b; CellMapper.gnbBits = b; prefs.edit().putInt("gnb_bits", b).apply()
+        _gnbBits.value = b; CellMapper.gnbBits = b; settings.gnbBits = b
         viewModelScope.launch { repo.refresh() }
     }
 
@@ -334,14 +252,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * effects run too (polling cadence, ping job, NCI split, overlay service).
      */
     fun reloadPrefs() {
-        setPollInterval(prefs.getLong("poll_ms", 1000L))
-        setPingHost(prefs.getString("ping_host", null) ?: "1.1.1.1")
-        setPingEnabled(prefs.getBoolean("ping_on", true))
-        setSpeedServer(prefs.getString("speed_server", "") ?: "")
-        setThemeMode(prefs.getString("theme", "system") ?: "system")
-        setPipAuto(prefs.getBoolean("pip_auto", true))
-        setGnbBits(prefs.getInt("gnb_bits", 24))
-        _speedResults.value = loadSpeedResults()
+        setPollInterval(settings.pollIntervalMs)
+        setPingHost(settings.pingHost)
+        setPingEnabled(settings.pingEnabled)
+        setSpeedServer(settings.speedServer)
+        setThemeMode(settings.themeMode)
+        setPipAuto(settings.pipAuto)
+        setGnbBits(settings.gnbBits)
+        speed.reload()
         viewModelScope.launch { visitedStore.reload() }
         reconcileOverlay()   // permission-gated: never start the service blindly
     }
@@ -397,7 +315,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         val fallback = list.firstOrNull { it.isDds }?.subId
             ?: list.firstOrNull()?.subId
-            ?: defaultDataSubId()
+            ?: dependencies.device.defaultDataSubId()
         _state.update { it.copy(sims = list) }
         if (fallback != repo.subId) applySub(fallback)
         else _state.update { it.copy(sim = list.firstOrNull { s -> s.subId == fallback }) }
@@ -433,7 +351,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         repo.stop()
         repoJobs.forEach { it.cancel() }
         repoJobs.clear()
-        repo = TelephonyRepository(getApplication(), subId)
+        repo = dependencies.telephony(subId)
         bindRepoFlows()
     }
 
@@ -469,7 +387,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * its own phone), so fall back to the data SIM's slot rather than to zero.
      */
     private fun phoneId(): Int = _state.value.sim?.slotIndex
-        ?: SubscriptionManager.getSlotIndex(defaultDataSubId()).takeIf { it >= 0 }
+        ?: dependencies.device.defaultDataSlot()
         ?: 0
 
     fun onPermissionsResult() {
@@ -479,7 +397,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         refreshRatLock(); refreshConnectivity()
     }
 
-    fun setPollInterval(ms: Long) { _pollIntervalMs.value = ms.coerceIn(500L, 10_000L); prefs.edit().putLong("poll_ms", _pollIntervalMs.value).apply(); startPolling() }
+    fun setPollInterval(ms: Long) { _pollIntervalMs.value = ms.coerceIn(500L, 10_000L); settings.pollIntervalMs = _pollIntervalMs.value; startPolling() }
 
     private fun startPolling() {
         pollJob?.cancel()
@@ -611,22 +529,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return recorder.active
     }
 
-    private val locListener = LocationListener { loc: Location ->
-        _state.update {
-            it.copy(
-                location = loc.latitude to loc.longitude,
-                locationAccuracyM = if (loc.hasAccuracy()) loc.accuracy else null,
-            )
-        }
-    }
-
-    @SuppressLint("MissingPermission")
     /** Stop everything that would otherwise keep running after the activity is gone (process-wide VM). */
     fun shutdown() {
-        pollJob?.cancel(); rootJob?.cancel(); pingJob?.cancel(); speedJob?.cancel()
-        pollJob = null; rootJob = null; pingJob = null; speedJob = null
+        pollJob?.cancel(); rootJob?.cancel(); pingJob?.cancel(); speed.cancel()
+        pollJob = null; rootJob = null; pingJob = null
         if (recorder.active) { recorder.stop(); _recordingFlow.value = false }
-        runCatching { lm.removeUpdates(locListener) }
+        locationSource.stop()
         simsRepo.stop()
         summaryMonitor.stop()
         repo.stop()
@@ -634,37 +542,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun startLocation() {
-        if (getApplication<Application>().checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-            != android.content.pm.PackageManager.PERMISSION_GRANTED) return
-        runCatching {
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 0f, locListener)
-            lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { l ->
-                _state.update {
-                    it.copy(
-                        location = l.latitude to l.longitude,
-                        locationAccuracyM = if (l.hasAccuracy()) l.accuracy else null,
-                    )
-                }
-            }
+        locationSource.start { location ->
+            _state.update { it.copy(location = location.coordinates, locationAccuracyM = location.accuracyM) }
         }
     }
 
     override fun onCleared() {
+        shutdown()
         repoJobs.forEach { it.cancel() }
-        simsRepo.stop()
-        summaryMonitor.stop()
-        repo.stop()
-        runCatching { lm.removeUpdates(locListener) }
-    }
-
-    private fun csvField(s: String): String {
-        if (s.none { it == ',' || it == '"' || it == '\n' || it == '\r' }) return s
-        return "\"" + s.replace("\"", "\"\"") + "\""
     }
 }
-
-private fun defaultDataSubId(): Int =
-    runCatching { SubscriptionManager.getDefaultDataSubscriptionId() }.getOrDefault(SubscriptionManager.INVALID_SUBSCRIPTION_ID)
 
 enum class HudPage { SERVING, THROUGHPUT;
     fun next() = if (this == SERVING) THROUGHPUT else SERVING
