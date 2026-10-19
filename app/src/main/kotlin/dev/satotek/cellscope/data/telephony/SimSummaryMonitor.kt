@@ -90,7 +90,8 @@ class SimSummaryMonitor(private val context: Context) {
                 ServiceState.STATE_EMERGENCY_ONLY -> "EMERGENCY_ONLY"
                 else -> "OUT_OF_SERVICE"
             }
-            operator = state.operatorAlphaLong?.takeIf { it.isNotBlank() } ?: "—"
+            operator = try { state.operatorAlphaLong?.takeIf { it.isNotBlank() } ?: "—" }
+                catch (_: SecurityException) { "—" }
             val raw = state.toString()
             fun flag(key: String) = Regex("$key\\s*=\\s*(true|false)").find(raw)?.groupValues?.get(1)?.toBoolean()
             endc = flag("isEnDcAvailable"); available = flag("isNrAvailable"); restricted = flag("isDcNrRestricted")

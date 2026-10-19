@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
+import android.os.ext.SdkExtensions
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -22,7 +24,9 @@ class CellularBind(
     val viaCellular: Boolean,
 ) {
     fun subscriptionId(): Int? = network?.let { n ->
-        cm.getNetworkCapabilities(n)?.subscriptionIds?.singleOrNull()
+        if (Build.VERSION.SDK_INT >= 35 || SdkExtensions.getExtensionVersion(Build.VERSION_CODES.UPSIDE_DOWN_CAKE) >= 12) {
+            cm.getNetworkCapabilities(n)?.subscriptionIds?.singleOrNull()
+        } else null
     }
 
     fun client(userAgent: String): OkHttpClient {

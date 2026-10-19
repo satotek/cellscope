@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">CellScope</string>
+    <string name="app_name" translatable="false">CellScope</string>
 
     <!-- privilege tiers -->
     <string name="priv_normal">normal</string>

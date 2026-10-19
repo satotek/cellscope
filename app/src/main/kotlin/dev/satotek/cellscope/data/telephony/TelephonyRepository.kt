@@ -179,7 +179,8 @@ class TelephonyRepository(
             // LteVopsSupportInfo prints "mVopsSupport = 2" (1 = not supported, 2 = supported).
             vopsSupported = Regex("mVopsSupport\\s*=\\s*(\\d)").find(raw)?.groupValues?.get(1)?.let { it == "2" } ?: bool("isVopsSupported"),
             usingCarrierAggregation = bool("mIsUsingCarrierAggregation") ?: bool("isUsingCarrierAggregation"),
-            operatorName = ss.operatorAlphaLong?.takeIf { it.isNotBlank() } ?: n.operatorName,
+            operatorName = try { ss.operatorAlphaLong?.takeIf { it.isNotBlank() } ?: n.operatorName }
+                catch (_: SecurityException) { n.operatorName },
             rawServiceState = raw,
         )
     }

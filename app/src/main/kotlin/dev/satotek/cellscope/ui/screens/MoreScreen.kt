@@ -91,6 +91,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -334,13 +335,14 @@ private fun deleteLog(csv: File) { jsonlOf(csv).delete(); csv.delete() }
  */
 @Composable
 private fun BackupPane(vm: MainViewModel?) {
+    val resources = LocalResources.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var restoreSettings by rememberSaveable { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
-    fun fail(t: Throwable) = context.getString(R.string.backup_failed, t.message ?: t.javaClass.simpleName)
+    fun fail(t: Throwable) = resources.getString(R.string.backup_failed, t.message ?: t.javaClass.simpleName)
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BackupArchive.MIME)) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -353,7 +355,7 @@ private fun BackupPane(vm: MainViewModel?) {
                 }
             }
             busy = false
-            message = r.fold({ context.getString(R.string.backup_exported, it.logs, it.snapshots) + context.getString(R.string.backup_visits, it.visits) }, ::fail)
+            message = r.fold({ resources.getString(R.string.backup_exported, it.logs, it.snapshots) + resources.getString(R.string.backup_visits, it.visits) }, ::fail)
         }
     }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -370,8 +372,8 @@ private fun BackupPane(vm: MainViewModel?) {
             busy = false
             r.onSuccess { if (it.settings) vm?.reloadPrefs() else vm?.reloadVisitedCells() }
             message = r.fold({ c ->
-                context.getString(R.string.backup_imported, c.logs, c.snapshots) + context.getString(R.string.backup_visits, c.visits) +
-                    if (c.skipped > 0) " · " + context.getString(R.string.backup_skipped, c.skipped) else ""
+                resources.getString(R.string.backup_imported, c.logs, c.snapshots) + resources.getString(R.string.backup_visits, c.visits) +
+                    if (c.skipped > 0) " · " + resources.getString(R.string.backup_skipped, c.skipped) else ""
             }, ::fail)
         }
     }
@@ -473,6 +475,7 @@ internal fun SpeedHistoryPane(vm: MainViewModel, results: List<SpeedResult>) {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SnapshotsPane() {
+    val resources = LocalResources.current
     val context = LocalContext.current
     var gen by remember { mutableIntStateOf(0) }
     val all = remember(gen) { SnapshotWriter.listPng(context) }
@@ -507,8 +510,8 @@ private fun SnapshotsPane() {
                 Row {
                     IconButton(onClick = {
                         val message = runCatching { SnapshotWriter.copyImage(context, f) }.fold(
-                            { context.getString(R.string.snapshot_copied) },
-                            { context.getString(R.string.snapshot_copy_failed) },
+                            { resources.getString(R.string.snapshot_copied) },
+                            { resources.getString(R.string.snapshot_copy_failed) },
                         )
                         android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                     }) {

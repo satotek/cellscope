@@ -30,9 +30,10 @@ KernelSU Next 3.x は `system/` のマウントを「メタモジュール」に
 
 ## UI: Material 3 Expressive
 
-- `compose-bom-alpha 2026.09.00`（material3 1.5.0-alpha28）。M3E の部品本体（`MaterialExpressiveTheme`,
-  `MotionScheme.expressive()`, `ToggleButton`/`ButtonGroup`, `LoadingIndicator`）は stable 1.4.0 では
-  `internal` で、alpha にしか無い。`compileSdk 37.1` が必要
+- `compose-bom-beta 2026.10.00`（Material 3 1.5.0-beta01、Compose UI / Runtime 1.13.0-beta01）。
+  Expressive の部品（`MaterialExpressiveTheme`, `ToggleButton` / `ButtonGroup`, `LoadingIndicator`）を
+  維持するため、Material 3 1.4.0 を使う安定版BOMではなくベータ版を選ぶ。`compileSdk 37.1` が必要。
+  BOMは各Composeライブラリのバージョンを揃える対応表で、Kotlin / Composeコンパイラは別途管理する。
 - 配色は壁紙由来のダイナミックカラー（`dynamicDark/LightColorScheme`）。ライト/ダーク自動追従
 - RAT色・good/fair/poor は意味色として固定。ライト時は暗いバリアント（`Palette` の composable getter）
 - `ShortNavigationBar`、トーナルカード（`shapes.extraLarge`、ボーダー無し）、接続トグルグループ

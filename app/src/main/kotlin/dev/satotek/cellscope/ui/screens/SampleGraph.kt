@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -23,7 +24,6 @@ import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /** The same frozen timeline is used in the sheet and the full-screen inspector. */
 @Composable
@@ -49,7 +49,7 @@ internal fun SampleGraph(
         else -> { s -> s.nrRsrp }
     }
     val hasNr = samples.any { it.t in range && nrPick(it) != null }
-    val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(selected.t))
+    val time = SimpleDateFormat("HH:mm:ss", LocalConfiguration.current.locales[0]).format(Date(selected.t))
     val description = stringResource(R.string.signal_inspect_chart, metric, time)
     val previous = stringResource(R.string.signal_previous_sample)
     val next = stringResource(R.string.signal_next_sample)

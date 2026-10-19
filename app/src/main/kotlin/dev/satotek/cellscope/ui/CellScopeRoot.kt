@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,6 +86,7 @@ fun CellScopeRoot(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var switchHintShown by rememberSaveable { mutableStateOf(false) }
     val copyLabel = stringResource(R.string.snapshot_copy_image)
@@ -93,7 +95,7 @@ fun CellScopeRoot(
         if (subId != state.sim?.subId) {
             vm.setSelectedSub(subId)
             val label = state.sims.firstOrNull { it.subId == subId }?.label.orEmpty()
-            val message = context.getString(if (switchHintShown) R.string.sim_switched else R.string.sim_switched_reset, label)
+            val message = resources.getString(if (switchHintShown) R.string.sim_switched else R.string.sim_switched_reset, label)
             switchHintShown = true
             scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()
@@ -110,8 +112,8 @@ fun CellScopeRoot(
                 val result = snackbarHostState.showSnackbar(st.file.name, copyLabel, withDismissAction = true, duration = SnackbarDuration.Long)
                 if (result == SnackbarResult.ActionPerformed) {
                     val message = runCatching { SnapshotWriter.copyImage(context, st.file) }.fold(
-                        { context.getString(R.string.snapshot_copied) },
-                        { context.getString(R.string.snapshot_copy_failed) },
+                        { resources.getString(R.string.snapshot_copied) },
+                        { resources.getString(R.string.snapshot_copy_failed) },
                     )
                     android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                 }

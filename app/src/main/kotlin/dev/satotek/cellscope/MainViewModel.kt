@@ -634,6 +634,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun startLocation() {
+        if (getApplication<Application>().checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         runCatching {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 0f, locListener)
             lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let { l ->
