@@ -72,7 +72,8 @@ git tag v0.2.0 && git push origin v0.2.0
 ```
 
 タグの push で `.github/workflows/release.yml` が、タグとバージョンの一致と署名証明書を
-確かめてから、APK と priv-app モジュール zip を GitHub Release に添付する。
+確かめてから、APK と priv-app モジュール zip を GitHub Release に添付する。リリースノートは
+`release-notes.sh` が前のタグからの Conventional Commits（feat / fix / perf）で作る。
 あわせて `update.json` と `changelog.md` も添付する。モジュールの `module.prop` の
 `updateJson` が `releases/latest/download/update.json` を指しているので、KernelSU / Magisk の
 マネージャーが新しいリリースを更新として検出する（`updateJson` 入りの版を一度入れたあとから）。
