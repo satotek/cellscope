@@ -14,7 +14,6 @@ import java.util.Locale
 data class ReplayData(
     val samples: List<SignalSample>,
     val events: List<dev.satotek.cellscope.data.model.CellEvent>,
-    val positions: List<Triple<Long, Double, Double>>,
 )
 
 object LogReader {
@@ -30,20 +29,15 @@ object LogReader {
 
     private fun loadJsonl(file: File): ReplayData {
         val samples = ArrayList<SignalSample>()
-        val positions = ArrayList<Triple<Long, Double, Double>>()
         file.forEachLine { raw ->
             val line = raw.trim()
             if (line.isEmpty()) return@forEachLine
             runCatching {
                 val o = JSONObject(line)
-                val smp = parseSample(o)
-                samples.add(smp)
-                if (o.has("lat") && o.has("lon")) {
-                    positions.add(Triple(smp.t, o.getDouble("lat"), o.getDouble("lon")))
-                }
+                samples.add(parseSample(o))
             }
         }
-        return ReplayData(samples, HistoryStore.eventsFrom(samples), positions)
+        return ReplayData(samples, HistoryStore.eventsFrom(samples))
     }
 
     private fun parseSample(o: JSONObject): SignalSample {
@@ -81,12 +75,13 @@ object LogReader {
             ccNr = o.optInt("ccNr", 0),
             neighbours = neighbours,
             rttMs = if (o.has("rttMs")) o.getDouble("rttMs") else null,
+            lat = if (o.has("lat")) o.optDouble("lat") else null,
+            lon = if (o.has("lon")) o.optDouble("lon") else null,
         )
     }
 
     private fun loadCsv(file: File): ReplayData {
         val samples = ArrayList<SignalSample>()
-        val positions = ArrayList<Triple<Long, Double, Double>>()
         var header = true
         file.forEachLine { raw ->
             if (header) { header = false; return@forEachLine }
@@ -105,12 +100,12 @@ object LogReader {
                     rsrq = cols[17].trim().toIntOrNull(),
                     sinr = cols[18].trim().toIntOrNull(),
                     ccCount = cols[22].trim().toIntOrNull() ?: 1,
+                    lat = lat, lon = lon,
                 )
                 samples.add(smp)
-                if (lat != null && lon != null) positions.add(Triple(t, lat, lon))
             }
         }
-        return ReplayData(samples, HistoryStore.eventsFrom(samples), positions)
+        return ReplayData(samples, HistoryStore.eventsFrom(samples))
     }
 
     private fun ratOf(name: String): Rat = runCatching { Rat.valueOf(name) }.getOrDefault(Rat.UNKNOWN)

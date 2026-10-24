@@ -474,6 +474,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             rxBps = rxBps, txBps = txBps, ccCount = cc, ccLte = ccLte, ccNr = ccNr,
             neighbours = (s.secondaries + s.neighbours).map { NbSample(it.rat, it.bandLabel, it.pci, it.arfcn, it.rsrp, it.rsrq, it.sinr) },
             rttMs = if (_pingEnabled.value) lastRtt else null,
+            lat = s.location?.first, lon = s.location?.second,
         )
         val sub = repo.subId
         HistoryStore.add(sub, sample)
@@ -485,7 +486,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
                 t = now, rat = dev.satotek.cellscope.data.model.Rat.entries.firstOrNull { it.name == sum.rat } ?: dev.satotek.cellscope.data.model.Rat.UNKNOWN,
                 band = "—", pci = null, rsrp = sum.rsrp, rsrq = sum.rsrq, sinr = sum.sinr,
                 nrRsrp = sum.nrRsrp, nrRsrq = sum.nrRsrq, nrSinr = sum.nrSinr,
-                rxBps = rxBps, txBps = txBps, rttMs = sample.rttMs, passive = true,
+                rxBps = rxBps, txBps = txBps, rttMs = sample.rttMs, passive = true, lat = sample.lat, lon = sample.lon,
             ))
         }
         _state.update { it.copy(history = HistoryStore.samples(sub), events = HistoryStore.events(sub), lastUpdate = now, updateCount = it.updateCount + 1).withNrConnection() }

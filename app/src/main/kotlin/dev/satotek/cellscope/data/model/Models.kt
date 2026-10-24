@@ -111,6 +111,8 @@ data class SignalSample(
     val rttMs: Double? = null,       // null = no probe yet, -1.0 = timeout / loss
     /** Standby SIM: signal from passive callbacks only, so no PCI, band, neighbours or CA. */
     val passive: Boolean = false,
+    /** Where the device was; null without a location fix. Lets the live history be drawn on a map. */
+    val lat: Double? = null, val lon: Double? = null,
 )
 
 /** Compact per-neighbour measurement kept in every sample for the neighbour time-series. */

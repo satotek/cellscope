@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.data.replay
 
+import dev.satotek.cellscope.data.model.SignalSample
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
@@ -14,9 +15,11 @@ object Track {
     const val TILE = 256.0
     const val MAX_ZOOM = 18
 
-    fun points(data: ReplayData): List<TrackPoint> {
-        val rsrpAt = data.samples.associate { it.t to it.rsrp }
-        return data.positions.map { (t, lat, lon) -> TrackPoint(t, lat, lon, rsrpAt[t]) }
+    fun points(data: ReplayData): List<TrackPoint> = points(data.samples)
+
+    fun points(samples: List<SignalSample>): List<TrackPoint> = samples.mapNotNull { s ->
+        val lat = s.lat ?: return@mapNotNull null
+        TrackPoint(s.t, lat, s.lon ?: return@mapNotNull null, s.rsrp)
     }
 
     fun project(lat: Double, lon: Double, zoom: Int): Pair<Double, Double> {

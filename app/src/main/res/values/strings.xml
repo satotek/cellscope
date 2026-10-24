@@ -352,4 +352,9 @@
     <string name="nr_disconnected_short">None</string>
     <string name="nr_unknown_short">Unknown</string>
     <string name="ping_rtt">Ping · RTT (ms)</string>
+    <string name="map_expand">Expand map</string>
+    <string name="map_collapse">Close</string>
+    <string name="map_now">Now</string>
+    <string name="signal_map">Recent track · RSRP</string>
+    <string name="signal_map_empty">The recent track appears here once a location fix arrives.</string>
 </resources>

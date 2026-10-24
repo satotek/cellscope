@@ -7,13 +7,20 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OpenInFull
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -65,7 +72,9 @@ private data class TileKey(val z: Int, val x: Int, val y: Int)
 
 /**
  * The drive on OpenStreetMap tiles, coloured by serving RSRP, with cell changes marked. Two fingers
- * zoom and pan so one finger still scrolls the page; a tap picks the nearest sample.
+ * zoom and pan so one finger still scrolls the page, unless [panWithOneFinger] says the map has the
+ * screen to itself; a tap picks the nearest sample. [resetKey] says when a pinched view is stale: a
+ * live track grows every second and must not snap back each time. [live] marks the newest point.
  */
 @Composable
 fun TrackMap(
@@ -74,6 +83,10 @@ fun TrackMap(
     selectedT: Long?,
     onSelect: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    resetKey: Any? = points,
+    live: Boolean = false,
+    panWithOneFinger: Boolean = false,
+    onExpand: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
@@ -81,19 +94,24 @@ fun TrackMap(
     val accent = Palette.accent
     val ground = MaterialTheme.colorScheme.surfaceContainerHighest
     val tiles = remember { mutableStateMapOf<TileKey, ImageBitmap>() }
-    var scale by remember(points) { mutableFloatStateOf(1f) }
-    var offset by remember(points) { mutableStateOf(Offset.Zero) }
+    var scale by remember(resetKey) { mutableFloatStateOf(1f) }
+    var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
 
     BoxWithConstraints(modifier.clip(RoundedCornerShape(12.dp)).background(ground)) {
         val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
         val pad = 24f
         // World units are dp at the fit zoom, so one tile is 256 dp before any pinch.
-        val baseZ = remember(points, wPx, hPx) { Track.fitZoom(points, (wPx / density - 2 * pad).toDouble(), (hPx / density - 2 * pad).toDouble()) }
-        val world = remember(points, baseZ) { points.map { Track.project(it.lat, it.lon, baseZ) } }
-        val centre = remember(world) {
-            val b = Track.bounds(points, baseZ)
-            Offset(((b[0] + b[2]) / 2).toFloat(), ((b[1] + b[3]) / 2).toFloat())
+        val fresh = remember(points, wPx, hPx) {
+            val z = Track.fitZoom(points, (wPx / density - 2 * pad).toDouble(), (hPx / density - 2 * pad).toDouble())
+            val b = Track.bounds(points, z)
+            z to Offset(((b[0] + b[2]) / 2).toFloat(), ((b[1] + b[3]) / 2).toFloat())
         }
+        // Once the user has pinched or panned, refitting a growing track would yank the view away.
+        val userMoved = scale != 1f || offset != Offset.Zero
+        var held by remember(resetKey) { mutableStateOf(fresh) }
+        SideEffect { if (!userMoved) held = fresh }
+        val (baseZ, centre) = if (userMoved) held else fresh
+        val world = remember(points, baseZ) { points.map { Track.project(it.lat, it.lon, baseZ) } }
         val viewCentre = Offset(wPx / 2, hPx / 2)
         fun toScreen(x: Double, y: Double) = Offset(
             viewCentre.x + offset.x + (x.toFloat() - centre.x) * scale * density,
@@ -135,7 +153,7 @@ fun TrackMap(
         val eventIdx = remember(points, events) { events.map { nearestIndex(it.t) }.distinct() }
 
         Canvas(
-            Modifier.fillMaxSize().pointerInput(points, baseZ) {
+            Modifier.fillMaxSize().pointerInput(world, centre, panWithOneFinger) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     var moved = false
@@ -158,8 +176,13 @@ fun TrackMap(
                             }
                             lastCentroid = c; lastSpan = span
                             pressed.fastForEach { it.consume() }
-                        } else if ((pressed[0].position - down.position).getDistance() > viewConfiguration.touchSlop || pressed[0].isConsumed) {
-                            moved = true
+                        } else {
+                            val p = pressed[0]
+                            if ((p.position - down.position).getDistance() > viewConfiguration.touchSlop || p.isConsumed) moved = true
+                            if (moved && panWithOneFinger && !p.isConsumed) {
+                                offset += p.position - p.previousPosition
+                                p.consume()
+                            }
                         }
                     }
                     if (!moved && points.isNotEmpty()) {
@@ -192,6 +215,11 @@ fun TrackMap(
                 drawCircle(Color.White, 4.5f * density, p)
                 drawCircle(Color.Black, 4.5f * density, p, style = Stroke(1.5f * density))
             }
+            if (live && world.isNotEmpty()) {
+                val p = toScreen(world.last().first, world.last().second)
+                drawCircle(Color.White, 8 * density, p)
+                drawCircle(accent, 6 * density, p)
+            }
             selectedT?.takeIf { points.isNotEmpty() }?.let { t ->
                 val i = nearestIndex(t)
                 val p = toScreen(world[i].first, world[i].second)
@@ -199,8 +227,15 @@ fun TrackMap(
             }
         }
         if (scale != 1f || offset != Offset.Zero) {
-            TextButton(onClick = { scale = 1f; offset = Offset.Zero }, modifier = Modifier.align(Alignment.TopEnd)) {
+            // A filled button: plain text would vanish against the map tiles.
+            FilledTonalButton(onClick = { scale = 1f; offset = Offset.Zero }, modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                 Text(stringResource(R.string.replay_map_fit))
+            }
+        }
+        onExpand?.let {
+            FilledTonalIconButton(onClick = it, modifier = Modifier.align(Alignment.BottomStart).padding(6.dp).size(36.dp)) {
+                Icon(Icons.Default.OpenInFull, stringResource(R.string.map_expand), Modifier.size(18.dp))
             }
         }
         // The OSM tile licence requires visible attribution wherever its tiles are shown.

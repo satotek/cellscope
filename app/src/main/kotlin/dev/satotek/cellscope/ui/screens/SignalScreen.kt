@@ -22,6 +22,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import dev.satotek.cellscope.R
+import dev.satotek.cellscope.data.replay.Track
 import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
@@ -167,6 +168,17 @@ fun SignalScreen(s: Snapshot) {
                         Series(k, neighbourColor(k)) { smp -> smp.neighbours.firstOrNull { it.key == k }?.rsrp }
                     }, -140, -60, 20, zonesRsrp, windowMs, heightDp = 150, pillsFor = 1, cursorT = selectedT, onTapSample = onTap)
                 
+            }
+        }
+        item {
+            // The same window as the charts above, so the map and the curves describe one stretch of time.
+            val track = remember(vis) { Track.points(vis) }
+            if (track.size >= 2) {
+                TrackPanel(stringResource(R.string.signal_map), track, s.events.filter { it.t >= (vis.firstOrNull()?.t ?: 0L) },
+                    selectedT, onSelect = { selectedT = it }, resetKey = s.sim?.subId to minutes, live = true)
+            } else Panel {
+                Text(stringResource(R.string.signal_map), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                Text(stringResource(R.string.signal_map_empty), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
             }
         }
         // Cell changes: newest first, 5 rows by default so the tab doesn't grow without bound; expand on demand.

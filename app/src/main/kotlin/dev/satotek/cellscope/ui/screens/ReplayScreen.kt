@@ -47,7 +47,6 @@ import dev.satotek.cellscope.data.model.SignalSample
 import dev.satotek.cellscope.data.replay.LogReader
 import dev.satotek.cellscope.data.replay.ReplayData
 import dev.satotek.cellscope.data.replay.Track
-import dev.satotek.cellscope.ui.components.TrackMap
 import dev.satotek.cellscope.ui.components.EventRow
 import dev.satotek.cellscope.ui.components.Panel
 import dev.satotek.cellscope.ui.components.RatStrip
@@ -155,16 +154,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
             }
         }
         if (track.size >= 2) item {
-            Panel {
-                Text(stringResource(R.string.replay_map), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
-                Spacer(Modifier.height(6.dp))
-                TrackMap(track, events, selectedT, onSelect = { selectedT = it }, modifier = Modifier.fillMaxWidth().height(280.dp))
-                Spacer(Modifier.height(6.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Legend(Palette.good, "≥ −90"); Legend(Palette.fair, "≥ −105"); Legend(Palette.poor, "< −105 dBm")
-                    Legend(Color.White, stringResource(R.string.replay_map_changes))
-                }
-            }
+            TrackPanel(stringResource(R.string.replay_map), track, events, selectedT, onSelect = { selectedT = it })
         }
         item {
             Box(

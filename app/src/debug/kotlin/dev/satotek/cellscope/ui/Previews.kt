@@ -127,5 +127,5 @@ object PreviewData {
 @Preview(name = "Replay", showBackground = true, backgroundColor = 0xFF0B0F14, heightDp = 2200)
 @Composable fun PreviewReplay() = CellScopeTheme {
     val h = PreviewData.snapshot.history
-    ReplayScreen(ReplayData(h, HistoryStore.eventsFrom(h), emptyList()), "cellscope-preview.jsonl")
+    ReplayScreen(ReplayData(h, HistoryStore.eventsFrom(h)), "cellscope-preview.jsonl")
 }
