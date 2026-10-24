@@ -3,6 +3,8 @@ package dev.satotek.cellscope.ui.screens
 import dev.satotek.cellscope.BuildConfig
 import dev.satotek.cellscope.data.update.UpdateState
 import dev.satotek.cellscope.data.update.InstallState
+import dev.satotek.cellscope.data.update.NoteLine
+import dev.satotek.cellscope.data.update.Releases
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Switch
 import android.content.Intent
@@ -844,6 +846,19 @@ private fun UpdatePanel(
         checkedAt?.takeIf { it > 0 }?.let {
             Text(stringResource(R.string.update_checked_at, time.format(Date(it))), fontSize = 12.sp, color = Palette.textDim)
         }
+        val notes = (update as? UpdateState.Available)?.latest?.notes?.let { Releases.noteLines(it) }.orEmpty()
+        if (notes.isNotEmpty()) {
+            var expanded by remember { mutableStateOf(false) }
+            Column(Modifier.padding(top = 8.dp)) {
+                Text(stringResource(R.string.update_notes), style = MaterialTheme.typography.labelMedium, color = Palette.textDim)
+                ReleaseNotes(if (expanded) notes else notes.take(NOTES_PREVIEW))
+                if (notes.size > NOTES_PREVIEW) {
+                    TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
+                        Text(stringResource(if (expanded) R.string.update_notes_less else R.string.update_notes_more))
+                    }
+                }
+            }
+        }
         if (update is UpdateState.Available && !canInstall) {
             Text(stringResource(R.string.update_debug_hint), fontSize = 12.sp, color = Palette.textDim, modifier = Modifier.padding(top = 4.dp))
         }
@@ -877,11 +892,18 @@ private fun UpdatePanel(
             onDismissRequest = { confirm = false },
             title = { Text(stringResource(R.string.update_install_title, update.latest.version)) },
             text = {
-                Text(stringResource(when {
-                    silent && privApp -> R.string.update_install_body_privapp
-                    silent -> R.string.update_install_body_root
-                    else -> R.string.update_install_body
-                }))
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(stringResource(when {
+                        silent && privApp -> R.string.update_install_body_privapp
+                        silent -> R.string.update_install_body_root
+                        else -> R.string.update_install_body
+                    }))
+                    if (notes.isNotEmpty()) {
+                        Text(stringResource(R.string.update_notes), style = MaterialTheme.typography.labelMedium,
+                            color = Palette.textDim, modifier = Modifier.padding(top = 12.dp))
+                        ReleaseNotes(notes)
+                    }
+                }
             },
             confirmButton = { Button(onClick = { confirm = false; onInstall() }) { Text(stringResource(R.string.update_install)) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
@@ -893,6 +915,18 @@ private fun UpdatePanel(
                 Text(stringResource(R.string.update_auto_desc), fontSize = 12.sp, color = Palette.textDim)
             }
             Switch(checked = auto, onCheckedChange = onAuto)
+        }
+    }
+}
+
+private const val NOTES_PREVIEW = 6
+
+@Composable
+private fun ReleaseNotes(lines: List<NoteLine>) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        lines.forEach { line ->
+            if (line.heading) Text(line.text, style = MaterialTheme.typography.titleSmall, color = Palette.text, modifier = Modifier.padding(top = 4.dp))
+            else Text("• ${line.text}", fontSize = 13.sp, color = Palette.text)
         }
     }
 }

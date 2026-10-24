@@ -321,5 +321,8 @@
     <string name="update_installing_root">インストール中…まもなくアプリが再起動します</string>
     <string name="update_install_failed">インストールできませんでした: %1$s</string>
     <string name="update_debug_hint">debug 版はリリースから更新できません。リリースページから release 版を入れてください。</string>
+    <string name="update_notes">変更内容</string>
+    <string name="update_notes_more">すべて表示</string>
+    <string name="update_notes_less">折りたたむ</string>
     <string name="close">閉じる</string>
 </resources>
