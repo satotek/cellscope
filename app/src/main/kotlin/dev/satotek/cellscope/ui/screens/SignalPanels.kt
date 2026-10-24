@@ -140,10 +140,9 @@ fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: 
         }
     } else ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // A pinned sheet must not move under the finger. With short details there is nothing for
-        // the inner scroll to consume, so an enabled drag would collapse the sheet instead of
-        // scrolling the log; the scrim, back, or a tap on the handle still dismiss it.
-        sheetGesturesEnabled = !scrubbing && !pinned) {
+        // Dragging the sheet is how it gets dismissed, so it stays enabled even when pinned; the
+        // pinned height only keeps the content from resizing the sheet while scrubbing.
+        sheetGesturesEnabled = !scrubbing) {
         // Replay pins the sheet at the top: scrubbing selects samples with different neighbour
         // counts, and a content-sized sheet would move the chart under the finger as it resized.
         // The live sheet stays sized to its content so the chart behind remains in view; 92% is
