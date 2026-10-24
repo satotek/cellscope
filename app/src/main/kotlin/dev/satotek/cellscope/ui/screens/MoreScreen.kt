@@ -2,6 +2,7 @@ package dev.satotek.cellscope.ui.screens
 
 import dev.satotek.cellscope.BuildConfig
 import dev.satotek.cellscope.data.update.UpdateState
+import dev.satotek.cellscope.data.update.InstallState
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Switch
 import android.content.Intent
@@ -145,6 +146,8 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
     val update by (vm?.update ?: noUpdate).collectAsStateWithLifecycle()
     val autoOn = remember { MutableStateFlow(true) }
     val updateAuto by (vm?.updateAuto ?: autoOn).collectAsStateWithLifecycle()
+    val idleInstall = remember { MutableStateFlow<InstallState>(InstallState.Idle) }
+    val install by (vm?.install ?: idleInstall).collectAsStateWithLifecycle()
     val s = sub
     when {
         s == null -> MoreHome(update, onOpen = { sub = it }, onExit = onExit)
@@ -173,7 +176,9 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
         "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) {
             AboutPane(state, privApp, onOpen = { sub = it }, update = update, updateAuto = updateAuto,
-                onCheckUpdate = { vm?.checkForUpdates() }, onUpdateAuto = { vm?.setUpdateAuto(it) })
+                onCheckUpdate = { vm?.checkForUpdates() }, onUpdateAuto = { vm?.setUpdateAuto(it) },
+                install = install, canInstall = vm?.canInstallUpdates == true,
+                onInstall = { vm?.installUpdate() }, onDismissInstall = { vm?.dismissInstall() })
         }
         "license" -> SubScreen(stringResource(R.string.about_license), onBack = { sub = "about" }) { AssetTextPane("LICENSE") }
         "oss" -> SubScreen(stringResource(R.string.about_oss), onBack = { sub = "about" }) { OssPane() }
@@ -735,6 +740,8 @@ private fun AboutPane(
     state: Snapshot, privApp: PrivAppInstaller.State?, onOpen: (String) -> Unit,
     update: UpdateState = UpdateState.Unknown, updateAuto: Boolean = true,
     onCheckUpdate: () -> Unit = {}, onUpdateAuto: (Boolean) -> Unit = {},
+    install: InstallState = InstallState.Idle, canInstall: Boolean = false,
+    onInstall: () -> Unit = {}, onDismissInstall: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val pkgInfo = remember {
@@ -784,7 +791,8 @@ private fun AboutPane(
             }
         }
         item {
-            UpdatePanel(update, updateAuto, onCheckUpdate, onUpdateAuto, ::open)
+            UpdatePanel(update, updateAuto, privApp == PrivAppInstaller.State.ACTIVE, onCheckUpdate, onUpdateAuto, ::open,
+                install, canInstall, silent = state.root.available == true, onInstall, onDismissInstall)
         }
         item {
             Panel(padding = 0.dp) {
@@ -801,8 +809,16 @@ private fun AboutPane(
 }
 
 @Composable
-private fun UpdatePanel(update: UpdateState, auto: Boolean, onCheck: () -> Unit, onAuto: (Boolean) -> Unit, open: (String) -> Unit) {
+private fun UpdatePanel(
+    update: UpdateState, auto: Boolean, privApp: Boolean,
+    onCheck: () -> Unit, onAuto: (Boolean) -> Unit, open: (String) -> Unit,
+    install: InstallState, canInstall: Boolean, silent: Boolean,
+    onInstall: () -> Unit, onDismissInstall: () -> Unit,
+) {
     val time = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
+    var confirm by remember { mutableStateOf(false) }
+    val installing = install is InstallState.Downloading || install == InstallState.Verifying ||
+        install == InstallState.Installing || install is InstallState.NeedsConfirmation
     val checkedAt = when (update) {
         is UpdateState.UpToDate -> update.checkedAt
         is UpdateState.Available -> update.checkedAt
@@ -828,13 +844,48 @@ private fun UpdatePanel(update: UpdateState, auto: Boolean, onCheck: () -> Unit,
         checkedAt?.takeIf { it > 0 }?.let {
             Text(stringResource(R.string.update_checked_at, time.format(Date(it))), fontSize = 12.sp, color = Palette.textDim)
         }
+        if (update is UpdateState.Available && !canInstall) {
+            Text(stringResource(R.string.update_debug_hint), fontSize = 12.sp, color = Palette.textDim, modifier = Modifier.padding(top = 4.dp))
+        }
+        when (install) {
+            is InstallState.Downloading -> {
+                Text(stringResource(R.string.update_downloading), fontSize = 12.sp, color = Palette.text, modifier = Modifier.padding(top = 6.dp))
+                val f = install.fraction
+                if (f == null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
+                else androidx.compose.material3.LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+            }
+            InstallState.Verifying -> Text(stringResource(R.string.update_verifying), fontSize = 12.sp, color = Palette.text, modifier = Modifier.padding(top = 6.dp))
+            InstallState.Installing, is InstallState.NeedsConfirmation ->
+                Text(stringResource(if (silent) R.string.update_installing_root else R.string.update_installing), fontSize = 12.sp, color = Palette.text, modifier = Modifier.padding(top = 6.dp))
+            is InstallState.Failed -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.update_install_failed, install.message), fontSize = 12.sp, color = Palette.poor, modifier = Modifier.weight(1f))
+                TextButton(onClick = onDismissInstall) { Text(stringResource(R.string.close)) }
+            }
+            InstallState.Idle -> {}
+        }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = onCheck, enabled = update != UpdateState.Checking) { Text(stringResource(R.string.update_check)) }
-            if (update is UpdateState.Available) {
-                TextButton(onClick = { open(update.latest.url) }) { Text(stringResource(R.string.update_open)) }
+            if (update is UpdateState.Available && canInstall && update.latest.apkUrl != null) {
+                Button(onClick = { confirm = true }, enabled = !installing) { Text(stringResource(R.string.update_install)) }
             }
+            OutlinedButton(onClick = onCheck, enabled = update != UpdateState.Checking && !installing) { Text(stringResource(R.string.update_check)) }
         }
+        if (update is UpdateState.Available) {
+            TextButton(onClick = { open(update.latest.url) }, contentPadding = PaddingValues(0.dp)) { Text(stringResource(R.string.update_open)) }
+        }
+        if (confirm && update is UpdateState.Available) AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.update_install_title, update.latest.version)) },
+            text = {
+                Text(stringResource(when {
+                    silent && privApp -> R.string.update_install_body_privapp
+                    silent -> R.string.update_install_body_root
+                    else -> R.string.update_install_body
+                }))
+            },
+            confirmButton = { Button(onClick = { confirm = false; onInstall() }) { Text(stringResource(R.string.update_install)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } },
+        )
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {

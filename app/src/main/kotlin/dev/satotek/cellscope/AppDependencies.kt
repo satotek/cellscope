@@ -24,4 +24,5 @@ class AppDependencies(context: Context) {
     val settings = SettingsStore(app)
     val location = LocationRepository(app)
     val updates = UpdateRepository(app)
+    val updateInstaller = dev.satotek.cellscope.data.update.UpdateInstaller(app)
 }

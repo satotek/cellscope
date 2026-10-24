@@ -310,4 +310,16 @@
     <string name="update_open">リリースページを開く</string>
     <string name="update_auto">自動で確認</string>
     <string name="update_auto_desc">1日1回、GitHub に最新リリースを問い合わせます。</string>
+    <string name="update_install">インストール</string>
+    <string name="update_install_title">%1$s をインストール</string>
+    <string name="update_install_body">APK をダウンロードし、署名がこのアプリと一致することを確かめてから、システムのインストール画面を開きます。</string>
+    <string name="update_install_body_root">APK をダウンロードし、署名がこのアプリと一致することを確かめてから、root で確認なしにインストールします。アプリは自動で再起動します。</string>
+    <string name="update_install_body_privapp">APK をダウンロードし、署名がこのアプリと一致することを確かめてから、root で確認なしにインストールします。priv-app モジュールも同じ APK で書き直し、端末の再起動後にシステム側も新しい版になります。アプリは自動で再起動します。</string>
+    <string name="update_downloading">ダウンロード中…</string>
+    <string name="update_verifying">署名を確認中…</string>
+    <string name="update_installing">インストール中…（システムの確認画面に従ってください）</string>
+    <string name="update_installing_root">インストール中…まもなくアプリが再起動します</string>
+    <string name="update_install_failed">インストールできませんでした: %1$s</string>
+    <string name="update_debug_hint">debug 版はリリースから更新できません。リリースページから release 版を入れてください。</string>
+    <string name="close">閉じる</string>
 </resources>

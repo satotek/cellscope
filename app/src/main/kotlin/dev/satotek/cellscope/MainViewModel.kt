@@ -68,6 +68,21 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
     val updateAuto: StateFlow<Boolean> = _updateAuto
     fun checkForUpdates() = viewModelScope.launch { updates.check() }
 
+    private val installer = dependencies.updateInstaller
+    val install: StateFlow<dev.satotek.cellscope.data.update.InstallState> = installer.state
+    /** Debug builds are another package under another key; a release APK can never update them. */
+    val canInstallUpdates = !BuildConfig.DEBUG
+    fun installUpdate() {
+        val release = (update.value as? dev.satotek.cellscope.data.update.UpdateState.Available)?.latest ?: return
+        val route = when {
+            _state.value.root.available != true -> dev.satotek.cellscope.data.update.InstallRoute.PACKAGE_INSTALLER
+            _privApp.value == PrivAppInstaller.State.ACTIVE -> dev.satotek.cellscope.data.update.InstallRoute.ROOT_PRIVAPP
+            else -> dev.satotek.cellscope.data.update.InstallRoute.ROOT
+        }
+        viewModelScope.launch { installer.install(release, route) }
+    }
+    fun dismissInstall() = installer.dismiss()
+    fun installConfirmationShown() = installer.confirmationShown()
     fun setUpdateAuto(on: Boolean) {
         _updateAuto.value = on; settings.updateAuto = on
         if (on && updates.isDue()) checkForUpdates()

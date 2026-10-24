@@ -326,4 +326,16 @@
     <string name="update_open">Open release page</string>
     <string name="update_auto">Check automatically</string>
     <string name="update_auto_desc">Asks GitHub for the latest release once a day.</string>
+    <string name="update_install">Install</string>
+    <string name="update_install_title">Install %1$s</string>
+    <string name="update_install_body">Downloads the APK, checks that it is signed with this app\'s key, then opens the system installer.</string>
+    <string name="update_install_body_root">Downloads the APK, checks that it is signed with this app\'s key, then installs it as root without a prompt. The app restarts by itself.</string>
+    <string name="update_install_body_privapp">Downloads the APK, checks that it is signed with this app\'s key, then installs it as root without a prompt. The priv-app module is rewritten from the same APK, so the system copy follows after a reboot. The app restarts by itself.</string>
+    <string name="update_downloading">Downloading…</string>
+    <string name="update_verifying">Checking the signature…</string>
+    <string name="update_installing">Installing… follow the system prompt</string>
+    <string name="update_installing_root">Installing… the app restarts shortly</string>
+    <string name="update_install_failed">Could not install: %1$s</string>
+    <string name="update_debug_hint">Debug builds cannot update from releases. Install the release build from the release page.</string>
+    <string name="close">Close</string>
 </resources>

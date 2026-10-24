@@ -58,9 +58,12 @@ object PrivAppInstaller {
     }
 
     /** Writes the module. Returns null on success, else the shell error. */
-    suspend fun install(context: Context, versionName: String, versionCode: Long): String? {
+    /** [apk] defaults to the running APK; an in-app update passes the verified download instead. */
+    suspend fun install(
+        context: Context, versionName: String, versionCode: Long,
+        apk: File = File(context.applicationInfo.sourceDir),
+    ): String? {
         val pkg = context.packageName
-        val apk = File(context.applicationInfo.sourceDir)
         // Stage a copy in our own cache: root can read it from there regardless of /data/app SELinux labels.
         val staged = File(context.cacheDir, "$APP_DIR.apk")
         runCatching { apk.copyTo(staged, overwrite = true) }.getOrElse { return "copy failed: ${it.message}" }

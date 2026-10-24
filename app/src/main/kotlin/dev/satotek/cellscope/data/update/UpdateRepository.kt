@@ -11,7 +11,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-data class ReleaseInfo(val version: String, val url: String)
+/** [apkUrl] is the release's own APK asset; null when a release ships none. */
+data class ReleaseInfo(val version: String, val url: String, val apkUrl: String? = null)
 
 sealed interface UpdateState {
     data object Unknown : UpdateState
@@ -27,8 +28,15 @@ object Releases {
 
     fun parse(json: String): ReleaseInfo {
         val o = JSONObject(json)
-        return ReleaseInfo(o.getString("tag_name"), o.getString("html_url"))
+        val tag = o.getString("tag_name")
+        val assets = o.optJSONArray("assets")
+        val apk = (0 until (assets?.length() ?: 0)).map { assets!!.getJSONObject(it) }
+            .firstOrNull { it.getString("name") == apkAssetName(tag) }?.getString("browser_download_url")
+        return ReleaseInfo(tag, o.getString("html_url"), apk)
     }
+
+    /** The name release.yml gives the APK it attaches. */
+    fun apkAssetName(tag: String) = "cellscope-$tag.apk"
 
     /** "v0.1.2" or "0.1.2-debug" → [0, 1, 2]; anything after '-' is a build flavour, not a version. */
     fun parts(version: String): List<Int> =
@@ -58,7 +66,8 @@ class UpdateRepository(context: Context, private val now: () -> Long = System::c
 
     private fun cached(): UpdateState {
         val version = prefs.getString("latest_version", null) ?: return UpdateState.Unknown
-        val info = ReleaseInfo(version, prefs.getString("latest_url", null) ?: return UpdateState.Unknown)
+        val info = ReleaseInfo(version, prefs.getString("latest_url", null) ?: return UpdateState.Unknown,
+            prefs.getString("latest_apk", null))
         val at = prefs.getLong("checked_at", 0L)
         return if (Releases.isNewer(info.version, current)) UpdateState.Available(info, at) else UpdateState.UpToDate(info, at)
     }
@@ -74,7 +83,7 @@ class UpdateRepository(context: Context, private val now: () -> Long = System::c
             onSuccess = { info ->
                 val at = now()
                 prefs.edit().putString("latest_version", info.version).putString("latest_url", info.url)
-                    .putLong("checked_at", at).apply()
+                    .putString("latest_apk", info.apkUrl).putLong("checked_at", at).apply()
                 if (Releases.isNewer(info.version, current)) UpdateState.Available(info, at) else UpdateState.UpToDate(info, at)
             },
             onFailure = { e ->

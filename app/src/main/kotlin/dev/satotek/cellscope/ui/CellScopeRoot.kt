@@ -134,6 +134,15 @@ fun CellScopeRoot(
     }
 
     val update by vm.update.collectAsStateWithLifecycle()
+    // The installer's confirmation must come from a visible activity, so it is opened here rather
+    // than from the broadcast that delivers it.
+    val install by vm.install.collectAsStateWithLifecycle()
+    val rootContext = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(install) {
+        val pending = install as? dev.satotek.cellscope.data.update.InstallState.NeedsConfirmation ?: return@LaunchedEffect
+        runCatching { rootContext.startActivity(pending.intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        vm.installConfirmationShown()
+    }
     val updateAvailable = update is dev.satotek.cellscope.data.update.UpdateState.Available
     Scaffold(
         containerColor = Palette.bg,
