@@ -306,9 +306,12 @@
     <string name="signal_neighbours_empty">Waiting for neighbour measurements</string>
     <string name="signal_changes">Cell changes · %1$d</string>
     <string name="signal_changes_near">Cell changes ±30s</string>
+    <string name="signal_live">● Live</string>
+    <string name="signal_go_live">Back to live</string>
     <string name="signal_fullscreen">View full screen</string>
     <string name="signal_exit_fullscreen">Return to details</string>
-    <string name="signal_frozen_hint">Drag the chart to select a time · History frozen when opened</string>
+    <string name="signal_scrub_hint">Drag the chart to select a time · Picking the past pauses</string>
+    <string name="signal_paused_hint">Drag the chart to select a time · Paused</string>
     <string name="signal_inspect_chart">%1$s chart, selected time %2$s</string>
     <string name="signal_previous_sample">Previous sample</string>
     <string name="signal_next_sample">Next sample</string>

@@ -186,6 +186,6 @@ fun SignalScreen(s: Snapshot) {
             }
         }
     }
-    selectedT?.let { t -> if (h.isNotEmpty()) SampleSheet(h, s.events, t, onDismiss = { selectedT = null }, initialMetric = selectedMetric) }
+    selectedT?.let { t -> if (h.isNotEmpty()) SampleSheet(h, s.events, t, onDismiss = { selectedT = null }, initialMetric = selectedMetric, live = true, liveEdgeMs = windowMs / 30) }
 }
 

@@ -34,6 +34,8 @@ internal fun SampleGraph(
     onMetric: (String) -> Unit, onMinutes: (Int) -> Unit,
     onSelect: (SignalSample) -> Unit, onScrubbing: (Boolean) -> Unit,
     onToggleFullScreen: () -> Unit,
+    live: Boolean? = null,           // null: not a live source (replay); false: paused on a past sample
+    onGoLive: () -> Unit = {},
 ) {
     val span = minOf(minutes * 60_000L, (samples.last().t - samples.first().t).coerceAtLeast(1_000L))
     val end = (anchor + span / 2).coerceIn(samples.first().t + span, maxOf(samples.last().t, samples.first().t + span))
@@ -65,6 +67,12 @@ internal fun SampleGraph(
             }
             Text("${pick(selected) ?: "—"} $unit", style = MaterialTheme.typography.titleLarge,
                 fontFamily = Mono, color = Palette.text)
+            when (live) {
+                true -> Text(stringResource(R.string.signal_live), style = MaterialTheme.typography.labelMedium,
+                    color = Palette.accent, modifier = Modifier.padding(start = 8.dp))
+                false -> TextButton(onClick = onGoLive) { Text(stringResource(R.string.signal_go_live)) }
+                null -> {}
+            }
             IconButton(onClick = onToggleFullScreen) {
                 Icon(if (fullScreen) Icons.Default.CloseFullscreen else Icons.Default.OpenInFull,
                     contentDescription = stringResource(if (fullScreen) R.string.signal_exit_fullscreen else R.string.signal_fullscreen))
@@ -104,6 +112,6 @@ internal fun SampleGraph(
                         CustomAccessibilityAction(next) { samples.getOrNull(idx + 1)?.let(onSelect); idx < samples.lastIndex })
                 })
         }
-        Text(stringResource(R.string.signal_frozen_hint), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+        Text(stringResource(if (live == false) R.string.signal_paused_hint else R.string.signal_scrub_hint), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
     }
 }

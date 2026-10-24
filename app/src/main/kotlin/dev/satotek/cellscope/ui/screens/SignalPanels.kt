@@ -90,22 +90,44 @@ internal fun ChartPanel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: Long, onDismiss: () -> Unit, initialMetric: String = "RSRP") {
-    // A live history can roll or grow while scrubbing; inspect a stable window until dismissed.
-    val inspectedSamples = remember(initialT) { samples.toList() }
-    val inspectedEvents = remember(initialT) { events.toList() }
-    var selectedT by remember(initialT) { mutableLongStateOf(initialT) }
+fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: Long, onDismiss: () -> Unit,
+                initialMetric: String = "RSRP", live: Boolean = false, liveEdgeMs: Long = 0L) {
+    // On the newest sample the sheet follows the live history. Anything older is inspected on a
+    // frozen copy: a live window would slide under the finger and could roll the sample out.
+    // A tap near the right edge rarely lands on the very last sample; the caller sizes this tolerance
+    // to its chart window so it stays about a fingertip wide at any zoom.
+    var following by remember(initialT) { mutableStateOf(live && (samples.lastOrNull()?.t ?: 0L) - initialT <= liveEdgeMs) }
+    var frozen by remember(initialT) { mutableStateOf(samples.toList() to events.toList()) }
+    val inspectedSamples = if (following) samples else frozen.first
+    val inspectedEvents = if (following) events else frozen.second
+    var pickedT by remember(initialT) { mutableLongStateOf(initialT) }
+    val selectedT = if (following) inspectedSamples.lastOrNull()?.t ?: pickedT else pickedT
     val smp = inspectedSamples.minByOrNull { kotlin.math.abs(it.t - selectedT) } ?: return
     var scrubbing by remember { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
     var metric by remember(initialT) { mutableStateOf(initialMetric) }
     var minutes by remember(initialT) { mutableIntStateOf(ChartWindows.DEFAULT_MINUTES) }
     var anchor by remember(initialT) { mutableLongStateOf(initialT) }
+    fun pause() {
+        if (!following) return
+        frozen = samples.toList() to events.toList()
+        pickedT = smp.t; anchor = smp.t; following = false
+    }
+    fun resumeIfNewest() {
+        if (live && !scrubbing && pickedT == frozen.first.lastOrNull()?.t) following = true
+    }
     val chart: @Composable (Boolean) -> Unit = { full ->
-        SampleGraph(inspectedSamples, inspectedEvents, smp, metric, minutes, anchor, full,
+        SampleGraph(inspectedSamples, inspectedEvents, smp, metric, minutes, if (following) smp.t else anchor, full,
             onMetric = { metric = it }, onMinutes = { minutes = it; anchor = smp.t },
-            onSelect = { selectedT = it.t }, onScrubbing = { scrubbing = it },
-            onToggleFullScreen = { fullScreen = !fullScreen })
+            onSelect = { pause(); pickedT = it.t; resumeIfNewest() },
+            onScrubbing = { active ->
+                if (active) pause()
+                scrubbing = active
+                if (!active) resumeIfNewest()
+            },
+            onToggleFullScreen = { fullScreen = !fullScreen },
+            live = if (live) following else null,
+            onGoLive = { following = true })
     }
     if (fullScreen) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { fullScreen = false },
