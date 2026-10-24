@@ -76,7 +76,12 @@ class OverlayService : Service() {
             .setContentIntent(open)
             .setOngoing(true)
             .build()
-        startForeground(NOTIF, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        // Cell info is location data, so without the location type the HUD goes blank the moment the
+        // app leaves the foreground. Android refuses that type when location is not granted; the
+        // HUD still shows throughput and ping then.
+        runCatching {
+            startForeground(NOTIF, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        }.onFailure { startForeground(NOTIF, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) }
     }
 
     private fun attachWindow() {
