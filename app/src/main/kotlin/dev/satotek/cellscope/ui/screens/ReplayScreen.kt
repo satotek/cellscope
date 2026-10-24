@@ -46,6 +46,8 @@ import dev.satotek.cellscope.data.model.Rat
 import dev.satotek.cellscope.data.model.SignalSample
 import dev.satotek.cellscope.data.replay.LogReader
 import dev.satotek.cellscope.data.replay.ReplayData
+import dev.satotek.cellscope.data.replay.Track
+import dev.satotek.cellscope.ui.components.TrackMap
 import dev.satotek.cellscope.ui.components.EventRow
 import dev.satotek.cellscope.ui.components.Panel
 import dev.satotek.cellscope.ui.components.RatStrip
@@ -90,6 +92,7 @@ fun ReplayScreen(data: ReplayData, fileName: String) {
 @Composable
 private fun ReplayBody(data: ReplayData, fileName: String) {
     val h = data.samples
+    val track = remember(data) { Track.points(data) }
     val events = data.events
     val dataStart = h.firstOrNull()?.t ?: 0L
     val dataEnd = h.lastOrNull()?.t ?: 0L
@@ -148,6 +151,18 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                     TextButton(onClick = { clampView(dataStart, dataEnd) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(R.string.replay_all), fontFamily = Mono)
                     }
+                }
+            }
+        }
+        if (track.size >= 2) item {
+            Panel {
+                Text(stringResource(R.string.replay_map), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                Spacer(Modifier.height(6.dp))
+                TrackMap(track, events, selectedT, onSelect = { selectedT = it }, modifier = Modifier.fillMaxWidth().height(280.dp))
+                Spacer(Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Legend(Palette.good, "≥ −90"); Legend(Palette.fair, "≥ −105"); Legend(Palette.poor, "< −105 dBm")
+                    Legend(Color.White, stringResource(R.string.replay_map_changes))
                 }
             }
         }

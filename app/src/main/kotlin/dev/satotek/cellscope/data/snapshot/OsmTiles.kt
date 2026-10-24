@@ -74,6 +74,11 @@ object OsmTiles {
         }.getOrNull()
     }
 
+    /** One 256 px tile from the shared cache, for the drive map; null when offline or out of range. */
+    suspend fun tile(context: Context, z: Int, x: Int, y: Int): Bitmap? = withContext(Dispatchers.IO) {
+        runCatching { loadTile(context, z, x, y, userAgent(context)) }.getOrNull()
+    }
+
     private fun userAgent(context: Context): String {
         val v = runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName

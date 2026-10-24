@@ -329,4 +329,7 @@
     <string name="tile_hud_needs_permission">許可が必要</string>
     <string name="tile_rat_failed">変更できませんでした</string>
     <string name="tile_rat_custom">カスタム</string>
+    <string name="replay_map">走行マップ · RSRP</string>
+    <string name="replay_map_changes">セル変更</string>
+    <string name="replay_map_fit">全体表示</string>
 </resources>

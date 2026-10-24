@@ -345,4 +345,7 @@
     <string name="tile_hud_needs_permission">Needs permission</string>
     <string name="tile_rat_failed">Could not change</string>
     <string name="tile_rat_custom">Custom</string>
+    <string name="replay_map">Drive map · RSRP</string>
+    <string name="replay_map_changes">Cell change</string>
+    <string name="replay_map_fit">Fit</string>
 </resources>
