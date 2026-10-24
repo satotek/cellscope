@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.data.snapshot
 
+import dev.satotek.cellscope.BuildConfig
 import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.ContentValues
@@ -23,7 +24,7 @@ import java.util.Date
 import java.util.Locale
 
 object SnapshotWriter {
-    const val AUTHORITY = "dev.satotek.cellscope.files"
+    const val AUTHORITY = "${BuildConfig.APPLICATION_ID}.files"
 
     fun dir(context: Context): File = File(context.getExternalFilesDir(null), "snapshots").apply { mkdirs() }
 

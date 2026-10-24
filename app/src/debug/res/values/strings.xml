@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Installs next to the release app; the label tells the two icons apart. -->
+    <string name="app_name" translatable="false">CellScope Debug</string>
+</resources>

@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.ui.screens
 
+import dev.satotek.cellscope.BuildConfig
 import android.content.Intent
 import android.net.Uri
 import androidx.core.graphics.drawable.toBitmap
@@ -123,7 +124,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val FILE_AUTHORITY = "dev.satotek.cellscope.files"
+private const val FILE_AUTHORITY = "${BuildConfig.APPLICATION_ID}.files"
 
 @Composable
 fun MoreScreen(vm: MainViewModel, state: Snapshot, onExit: () -> Unit = {}) {

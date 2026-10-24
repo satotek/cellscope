@@ -17,6 +17,12 @@ android {
     }
 
     buildTypes {
+        // Debug builds are a separate, debug-key app: a debuggable APK under the release key could
+        // replace a release install and expose its data through run-as.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             // R8 drops the unused ~40 MB of material-icons-extended; nothing we reflect on lives in our own code.
             isMinifyEnabled = true
@@ -31,6 +37,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
