@@ -90,10 +90,9 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
                         val dds = s.sims.firstOrNull { it.isDds }
                         Text(stringResource(R.string.communication_source, dds?.label ?: "—"),
                             style = MaterialTheme.typography.bodyMedium, color = Palette.accent)
-                        Text(stringResource(R.string.communication_scope),
-                            style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
                     }
-                    item { NetworkCard(s, progress, results.firstOrNull(), vm::startSpeedTest, vm::cancelSpeedTest) }
+                    item { SpeedTestCard(s, progress, results.firstOrNull(), vm::startSpeedTest, vm::cancelSpeedTest) }
+                    item { LiveCard(s) }
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             listOf(2, 5, 15, 60).forEach { m ->
@@ -140,20 +139,35 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
     }
 }
 
+// Live traffic and the speed test sit in separate cards: during an upload phase the live ▼ drops
+// to ACK traffic, which reads as a broken download result when both share one card.
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun NetworkCard(
+private fun SpeedTestCard(
     s: Snapshot,
     speedProgress: SpeedProgress?,
     lastSpeed: SpeedResult?,
     onStartSpeedTest: () -> Unit,
     onCancelSpeedTest: () -> Unit,
 ) {
-    Panel(title = stringResource(R.string.home_performance)) {
+    Panel(title = stringResource(R.string.speed_test)) {
+        Text(stringResource(R.string.speed_scope), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
+        Spacer(Modifier.height(12.dp))
+        SpeedBlock(
+            speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest,
+            ddsNote = standbyDdsLabel(s)?.let { stringResource(R.string.sim_speed_on_dds, it) },
+        )
+    }
+}
+
+@Composable
+private fun LiveCard(s: Snapshot) {
+    Panel(title = stringResource(R.string.communication_live)) {
+        Text(stringResource(R.string.communication_scope), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
         standbyDdsLabel(s)?.let { dds ->
             Text(stringResource(R.string.sim_metrics_on_dds, dds), fontSize = 12.sp, color = Palette.accent)
-            Spacer(Modifier.height(8.dp))
         }
+        Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             val last = s.history.lastOrNull()
             Metric("▼ Mbps", last?.rxBps?.let { String.format(java.util.Locale.US, "%.1f", it / 1e6) } ?: "—", color = Palette.nr)
@@ -162,11 +176,6 @@ private fun NetworkCard(
             Metric("RTT", when { rtt == null -> "—"; rtt < 0 -> "LOST"; else -> rtt.toInt().toString() }, "ms",
                 when { rtt == null -> Palette.text; rtt < 0 -> Palette.poor; rtt < 50 -> Palette.good; rtt < 120 -> Palette.fair; else -> Palette.poor })
         }
-        Spacer(Modifier.height(12.dp))
-        SpeedBlock(
-            speedProgress, lastSpeed, onStartSpeedTest, onCancelSpeedTest,
-            ddsNote = standbyDdsLabel(s)?.let { stringResource(R.string.sim_speed_on_dds, it) },
-        )
     }
 }
 

@@ -207,7 +207,6 @@
     <string name="backup_failed">失敗: %1$s</string>
     <string name="sim_select">表示するSIM</string>
     <string name="home_cells_link">セル一覧 %1$d件 · 近隣 %2$d件 →</string>
-    <string name="home_performance">通信速度・遅延</string>
     <string name="home_network_details">ネットワーク詳細</string>
     <string name="home_expand">ネットワーク詳細を開く</string>
     <string name="home_collapse">ネットワーク詳細を閉じる</string>
@@ -226,7 +225,8 @@
     <string name="communication_live">現在の通信</string>
     <string name="communication_history">測定履歴</string>
     <string name="communication_source">データSIM：%1$s</string>
-    <string name="communication_scope">通信量は端末全体のモバイル通信、Pingは現在の接続の値です。速度測定はモバイル回線を優先します。SIM切替でグラフはリセットされます。</string>
+    <string name="communication_scope">端末全体のモバイル通信量と、現在の接続のPingです。SIMを切り替えるとグラフはリセットされます。</string>
+    <string name="speed_scope">モバイル回線を優先して、下り・上りを10秒ずつ測定します。</string>
     <string name="ca_title">キャリアアグリゲーション</string>
     <string name="ca_no_config">構成情報なし</string>
     <string name="cell_pending_short">未取得</string>

@@ -223,7 +223,6 @@
     <string name="backup_failed">Failed: %1$s</string>
     <string name="sim_select">Choose SIM</string>
     <string name="home_cells_link">Cells %1$d · Neighbours %2$d →</string>
-    <string name="home_performance">Throughput &amp; latency</string>
     <string name="home_network_details">Network details</string>
     <string name="home_expand">Expand network details</string>
     <string name="home_collapse">Collapse network details</string>
@@ -242,7 +241,8 @@
     <string name="communication_live">Live</string>
     <string name="communication_history">Test history</string>
     <string name="communication_source">Data SIM: %1$s</string>
-    <string name="communication_scope">Traffic includes all mobile interfaces; ping uses the current connection. Speed tests prefer cellular. Charts reset when switching SIMs.</string>
+    <string name="communication_scope">All mobile traffic on this device, and ping over the current connection. Charts reset when switching SIMs.</string>
+    <string name="speed_scope">Measures download and upload for 10 s each, preferring cellular.</string>
     <string name="ca_title">Carrier aggregation</string>
     <string name="ca_no_config">No configuration</string>
     <string name="cell_pending_short">Not received</string>
