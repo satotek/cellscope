@@ -219,7 +219,7 @@ private fun NetworkDetails(s: Snapshot) {
     Panel(title = stringResource(R.string.home_network_details)) {
         MeasurementGrid(listOf(
             MeasurementValue(stringResource(R.string.dashboard_data_rat), n.dataNetworkType),
-            MeasurementValue("NR", nrStatusLabel(n.nrState), color = if (n.nrState == "CONNECTED" || n.nrState == "SA") Palette.nr else Palette.text),
+            MeasurementValue("NR", nrStatusLabel(n.nrState, short = true), color = if (n.nrState == "CONNECTED" || n.nrState == "SA") Palette.nr else Palette.text),
             MeasurementValue("EN-DC", available(n.isEnDcAvailable)),
             MeasurementValue("CA", enabled(n.usingCarrierAggregation)),
             MeasurementValue(stringResource(R.string.dashboard_service), when(n.serviceState) {
@@ -240,7 +240,10 @@ private fun NetworkDetails(s: Snapshot) {
             MeasurementValue(stringResource(R.string.dashboard_nr_available), available(n.isNrAvailable)),
             MeasurementValue(stringResource(R.string.dashboard_nr_restricted), enabled(n.isDcNrRestricted)),
             MeasurementValue(stringResource(R.string.dashboard_nr_anchor), n.nrAnchorPci?.toString() ?: "—"),
-            MeasurementValue(stringResource(R.string.dashboard_bandwidth), n.cellBandwidthsKhz.takeIf { it.isNotEmpty() }?.joinToString(" + ") { fmtBw(it) } ?: "—"),
+            // "15+15+15" over a shared unit stays on one line where "15 MHz + 15 MHz + …" took three.
+            MeasurementValue(stringResource(R.string.dashboard_bandwidth),
+                n.cellBandwidthsKhz.takeIf { it.isNotEmpty() }?.joinToString("+") { fmtBw(it).removeSuffix(" MHz") } ?: "—",
+                unit = if (n.cellBandwidthsKhz.isNotEmpty()) "MHz" else null),
         ))
     }
 }

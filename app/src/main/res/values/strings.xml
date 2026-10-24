@@ -348,4 +348,10 @@
     <string name="replay_map">Drive map · RSRP</string>
     <string name="replay_map_changes">Cell change</string>
     <string name="replay_map_fit">Fit</string>
+    <string name="nr_sa_short">SA</string>
+    <string name="nr_nsa_short">NSA</string>
+    <string name="nr_available_short">Available</string>
+    <string name="nr_restricted_short">Restricted</string>
+    <string name="nr_disconnected_short">None</string>
+    <string name="nr_unknown_short">Unknown</string>
 </resources>

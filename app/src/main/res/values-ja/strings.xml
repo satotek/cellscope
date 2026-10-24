@@ -332,4 +332,10 @@
     <string name="replay_map">走行マップ · RSRP</string>
     <string name="replay_map_changes">セル変更</string>
     <string name="replay_map_fit">全体表示</string>
+    <string name="nr_sa_short">SA</string>
+    <string name="nr_nsa_short">NSA</string>
+    <string name="nr_available_short">利用可</string>
+    <string name="nr_restricted_short">制限あり</string>
+    <string name="nr_disconnected_short">未接続</string>
+    <string name="nr_unknown_short">不明</string>
 </resources>

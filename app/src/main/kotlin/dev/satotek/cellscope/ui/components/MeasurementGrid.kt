@@ -1,6 +1,9 @@
 package dev.satotek.cellscope.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,9 +39,12 @@ fun MeasurementGrid(values: List<MeasurementValue>, preferredColumns: Int = 4) {
                         val color = if (item.color == Color.Unspecified) Palette.text else item.color
                         Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
                             Text(item.label, style = MaterialTheme.typography.labelMedium, color = Palette.textDim)
-                            Text(item.value, modifier = Modifier.heightIn(min = (if (item.prominent) 48f else 24f).times(scale).dp), fontFamily = Mono,
-                                fontWeight = if (item.prominent) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = if (item.prominent) 36.sp else 16.sp, color = color)
+                            // Shrink a long value to fit its column rather than wrap it mid-word.
+                            val size = if (item.prominent) 36.sp else 16.sp
+                            BasicText(item.value, modifier = Modifier.heightIn(min = (if (item.prominent) 48f else 24f).times(scale).dp),
+                                style = TextStyle(fontFamily = Mono, fontWeight = if (item.prominent) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = size, color = color),
+                                maxLines = 1, autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = size))
                             item.unit?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Palette.textDim) }
                         }
                     }
