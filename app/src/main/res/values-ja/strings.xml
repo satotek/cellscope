@@ -341,4 +341,6 @@
     <string name="map_now">現在地</string>
     <string name="signal_map">直近の軌跡 · RSRP</string>
     <string name="signal_map_empty">位置情報が得られると、ここに直近の軌跡が出ます。</string>
+    <string name="signal_viewing">%1$s–%2$s を表示中</string>
+    <string name="signal_pan_hint">グラフを横になぞると過去へ、ピンチで表示幅を変更</string>
 </resources>
