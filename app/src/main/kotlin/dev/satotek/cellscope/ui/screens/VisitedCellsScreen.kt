@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -82,20 +83,36 @@ fun VisitedCellsScreen(vm: MainViewModel) {
 @Composable
 private fun VisitCard(e: VisitedCell, date: SimpleDateFormat, onEdit: () -> Unit) {
     Panel(Modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.visits_note), onClick = onEdit)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${e.rat} · ${e.band}", style = MaterialTheme.typography.titleMedium, color = Palette.text)
-            Text(e.bestRsrp?.let { "$it dBm" } ?: "—", fontFamily = Mono, color = Palette.rsrp(e.bestRsrp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text("${e.rat} · ${e.band}", style = MaterialTheme.typography.titleMedium, color = Palette.text)
+                Text("${e.plmn} · ${e.simLabels.joinToString()}", style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(stringResource(R.string.visits_best_rsrp), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                Text(e.bestRsrp?.let { "$it dBm" } ?: "—", fontFamily = Mono, color = Palette.rsrp(e.bestRsrp))
+            }
         }
-        Text("${e.plmn} · ${e.simLabels.joinToString()}", style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
         Spacer(Modifier.height(8.dp))
         KeyValueRow(if (e.rat == "NR") "NCI" else "Cell ID", e.cellId.toString())
         KeyValueRow("PCI / ARFCN", "${e.pci ?: "—"} / ${e.arfcn ?: "—"}")
         KeyValueRow(stringResource(R.string.visits_count), e.visits.toString())
-        Text(stringResource(R.string.visits_best_rsrp), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
-        Text(stringResource(R.string.visits_first, date.format(Date(e.firstSeen))), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
-        Text(stringResource(R.string.visits_last, date.format(Date(e.lastSeen))), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
-        Spacer(Modifier.height(8.dp))
-        Text(e.note.ifBlank { stringResource(R.string.visits_add_note) }, style = MaterialTheme.typography.bodyMedium,
-            color = if (e.note.isBlank()) Palette.accent else Palette.text)
+        KeyValueRow(stringResource(R.string.visits_period), period(e.firstSeen, e.lastSeen, date))
+        if (e.note.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(e.note, style = MaterialTheme.typography.bodyMedium, color = Palette.text)
+        }
+    }
+}
+
+private fun period(first: Long, last: Long, date: SimpleDateFormat): String {
+    val a = date.format(Date(first))
+    val b = date.format(Date(last))
+    if (a == b) return a
+    // Drop the parts the end shares with the start so the row stays on one line ("yyyy/MM/dd HH:mm").
+    return when {
+        a.take(10) == b.take(10) -> "$a – ${b.drop(11)}"
+        a.take(4) == b.take(4) -> "$a – ${b.drop(5)}"
+        else -> "$a – $b"
     }
 }
