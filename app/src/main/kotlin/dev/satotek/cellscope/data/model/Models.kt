@@ -109,6 +109,8 @@ data class SignalSample(
     val ccLte: Int = 0, val ccNr: Int = 0,
     val neighbours: List<NbSample> = emptyList(),
     val rttMs: Double? = null,       // null = no probe yet, -1.0 = timeout / loss
+    /** Standby SIM: signal from passive callbacks only, so no PCI, band, neighbours or CA. */
+    val passive: Boolean = false,
 )
 
 /** Compact per-neighbour measurement kept in every sample for the neighbour time-series. */

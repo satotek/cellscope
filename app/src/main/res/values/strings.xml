@@ -229,7 +229,7 @@
     <string name="cell_details">Cell details</string>
     <string name="cell_neighbour">Neighbour</string>
     <string name="sim_switched">Showing %1$s</string>
-    <string name="sim_switched_reset">Showing %1$s · Chart history resets when switching SIMs.</string>
+    <string name="sim_switched_first">Showing %1$s · Dashed stretches were recorded in the background, signal only.</string>
     <string name="snapshot_copy_image">Copy image</string>
     <string name="snapshot_copied">Image copied</string>
     <string name="snapshot_copy_failed">Could not copy image</string>
@@ -237,7 +237,7 @@
     <string name="communication_live">Live</string>
     <string name="communication_history">Test history</string>
     <string name="communication_source">Data SIM: %1$s</string>
-    <string name="communication_scope">All mobile traffic on this device, and ping over the current connection. Charts reset when switching SIMs.</string>
+    <string name="communication_scope">All mobile traffic on this device, and ping over the current connection.</string>
     <string name="speed_scope">Measures download and upload for 10 s each, preferring cellular.</string>
     <string name="ca_title">Carrier aggregation</string>
     <string name="ca_no_config">No configuration</string>

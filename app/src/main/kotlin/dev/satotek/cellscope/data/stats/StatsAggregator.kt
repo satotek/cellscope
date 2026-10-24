@@ -111,11 +111,14 @@ object StatsAggregator {
             smp.nrRsrp?.let { nrRsrpVals += it.toDouble() to ms }
             smp.nrRsrq?.let { nrRsrqVals += it.toDouble() to ms }
             smp.nrSinr?.let { nrSinrVals += it.toDouble() to ms }
-            val lte = if (smp.ccLte + smp.ccNr > 0) smp.ccLte else smp.ccCount
-            val nr = if (smp.ccLte + smp.ccNr > 0) smp.ccNr else 0
-            if (lte > 0) caLte[min(lte, 4) - 1] += ms
-            caNr[min(nr, 2)] += ms
-            caTotalMs += ms
+            // A standby SIM's sample carries no carrier list; counting it as one carrier would skew CA.
+            if (!smp.passive) {
+                val lte = if (smp.ccLte + smp.ccNr > 0) smp.ccLte else smp.ccCount
+                val nr = if (smp.ccLte + smp.ccNr > 0) smp.ccNr else 0
+                if (lte > 0) caLte[min(lte, 4) - 1] += ms
+                caNr[min(nr, 2)] += ms
+                caTotalMs += ms
+            }
             smp.rxBps?.let { rx += it.toDouble() to ms }
             smp.txBps?.let { tx += it.toDouble() to ms }
             val rtt = smp.rttMs

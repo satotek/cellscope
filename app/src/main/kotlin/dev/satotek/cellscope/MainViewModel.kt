@@ -299,6 +299,8 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
 
     private fun onSims(list: List<SimInfo>) {
         if (repo.hasPermissions()) summaryMonitor.sync(list)
+        // An empty list is also what arrives before permissions; keep history until a real list says otherwise.
+        if (list.isNotEmpty()) HistoryStore.retain(list.map { it.subId }.toSet())
         val selected = _selectedSub.value
         // Switching the data SIM in Settings does not restart this process, so an app the user has
         // not steered would otherwise keep watching the SIM that was default when it launched.
@@ -330,15 +332,13 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             _state.update { it.copy(sim = sim) }
             return
         }
-        // The chart is one SIM. Mixing the previous SIM's samples in would look like a handover.
-        HistoryStore.clear()
-        lastRx = -1L; lastTx = -1L; lastTrafficT = 0L
+        // Each SIM keeps its own history, so the chart never stitches two SIMs into a fake handover.
         _state.update {
             it.copy(
                 cells = emptyList(),
                 network = NetworkState(),
-                history = emptyList(),
-                events = emptyList(),
+                history = HistoryStore.samples(subId),
+                events = HistoryStore.events(subId),
                 sim = sim,
                 root = it.root.copy(physicalChannels = emptyList(), physicalChannelsRaw = "", physicalChannelsSource = "", physicalChannelsReadAt = 0L, dataCalls = emptyList()),
             )
@@ -443,8 +443,20 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
             neighbours = (s.secondaries + s.neighbours).map { NbSample(it.rat, it.bandLabel, it.pci, it.arfcn, it.rsrp, it.rsrq, it.sinr) },
             rttMs = if (_pingEnabled.value) lastRtt else null,
         )
-        HistoryStore.add(sample)
-        _state.update { it.copy(history = HistoryStore.samples(), events = HistoryStore.events(), lastUpdate = now, updateCount = it.updateCount + 1).withNrConnection() }
+        val sub = repo.subId
+        HistoryStore.add(sub, sample)
+        // Standby SIMs get a signal-only sample so switching to one shows its recent past.
+        // Throughput and ping are device-wide, so they are copied rather than left as gaps.
+        s.sims.filter { it.subId != sub }.forEach { sim ->
+            val sum = s.simSummaries[sim.subId] ?: return@forEach
+            HistoryStore.add(sim.subId, SignalSample(
+                t = now, rat = dev.satotek.cellscope.data.model.Rat.entries.firstOrNull { it.name == sum.rat } ?: dev.satotek.cellscope.data.model.Rat.UNKNOWN,
+                band = "—", pci = null, rsrp = sum.rsrp, rsrq = sum.rsrq, sinr = sum.sinr,
+                nrRsrp = sum.nrRsrp, nrRsrq = sum.nrRsrq, nrSinr = sum.nrSinr,
+                rxBps = rxBps, txBps = txBps, rttMs = sample.rttMs, passive = true,
+            ))
+        }
+        _state.update { it.copy(history = HistoryStore.samples(sub), events = HistoryStore.events(sub), lastUpdate = now, updateCount = it.updateCount + 1).withNrConnection() }
         visitSamples.trySend(_state.value)
         if (recorder.active) recorder.append(_state.value, sample)
     }

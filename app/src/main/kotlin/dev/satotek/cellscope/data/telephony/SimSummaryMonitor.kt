@@ -22,6 +22,12 @@ data class SimSummary(
     val service: String = "—",
     val nrState: String = "UNKNOWN",
     val rsrp: Int? = null,
+    val rsrq: Int? = null,
+    val sinr: Int? = null,
+    /** NSA: the NR leg reported alongside an LTE anchor. */
+    val nrRsrp: Int? = null,
+    val nrRsrq: Int? = null,
+    val nrSinr: Int? = null,
 )
 
 class SimSummaryMonitor(private val context: Context) {
@@ -65,17 +71,34 @@ class SimSummaryMonitor(private val context: Context) {
         private var override = "NONE"
         private var service = "—"
         private var operator = "—"
-        private var lteRsrp: Int? = null
-        private var nrRsrp: Int? = null
+        private var lte: CellSignalStrengthLte? = null
+        private var nr: CellSignalStrengthNr? = null
         private var endc: Boolean? = null
         private var available: Boolean? = null
         private var restricted: Boolean? = null
 
         private fun publish() {
             if (listeners[subId]?.second !== this) return
-            _summaries.update { it + (subId to SimSummary(subId, operator, rat, override, service,
-                NrConnection.state(rat, override, endc, available, restricted, inService = service == "IN_SERVICE"),
-                if (service == "IN_SERVICE") (when (rat) { "NR" -> nrRsrp; "LTE" -> lteRsrp; else -> null }) else null)) }
+            val inService = service == "IN_SERVICE"
+            val lteRsrp = lte?.rsrp?.takeIf { it in -140..-43 }
+            val nrRsrp = nr?.ssRsrp?.takeIf { it in -156..-31 }
+            val lteRsrq = lte?.rsrq?.takeIf { it in -34..3 }
+            val lteSinr = lte?.rssnr?.takeIf { it in -20..30 }
+            val nrRsrq = nr?.ssRsrq?.takeIf { it in -43..20 }
+            val nrSinr = nr?.ssSinr?.takeIf { it in -23..40 }
+            val summary = when {
+                !inService -> SimSummary(subId, operator, rat, override, service,
+                    NrConnection.state(rat, override, endc, available, restricted, inService = false))
+                rat == "NR" -> SimSummary(subId, operator, rat, override, service,
+                    NrConnection.state(rat, override, endc, available, restricted, inService = true),
+                    nrRsrp, nrRsrq, nrSinr)
+                rat == "LTE" -> SimSummary(subId, operator, rat, override, service,
+                    NrConnection.state(rat, override, endc, available, restricted, inService = true),
+                    lteRsrp, lteRsrq, lteSinr, nrRsrp, nrRsrq, nrSinr)
+                else -> SimSummary(subId, operator, rat, override, service,
+                    NrConnection.state(rat, override, endc, available, restricted, inService = true))
+            }
+            _summaries.update { it + (subId to summary) }
         }
 
         override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {
@@ -98,10 +121,8 @@ class SimSummaryMonitor(private val context: Context) {
             publish()
         }
         override fun onSignalStrengthsChanged(signal: SignalStrength) {
-            lteRsrp = signal.cellSignalStrengths.filterIsInstance<CellSignalStrengthLte>()
-                .firstOrNull()?.rsrp?.takeIf { it in -140..-43 }
-            nrRsrp = signal.cellSignalStrengths.filterIsInstance<CellSignalStrengthNr>()
-                .firstOrNull()?.ssRsrp?.takeIf { it in -156..-31 }
+            lte = signal.cellSignalStrengths.filterIsInstance<CellSignalStrengthLte>().firstOrNull()
+            nr = signal.cellSignalStrengths.filterIsInstance<CellSignalStrengthNr>().firstOrNull()
             publish()
         }
     }

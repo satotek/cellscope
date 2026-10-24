@@ -155,13 +155,23 @@ fun SignalChart(
         // series
         val visible = samples.filter { it.t >= t0 && it.t <= t1 }
         series.forEachIndexed { idx, s ->
-            val path = Path(); val fill = Path(); var pen = false; var firstX = 0f; var lastX = 0f; var last: Int? = null
+            // Passive (standby-SIM) stretches go to a second, dashed path: same colour, visibly coarser data.
+            val path = Path(); val dashed = Path(); val fill = Path(); var pen = false; var firstX = 0f; var lastX = 0f; var last: Int? = null
+            var prev: Offset? = null; var prevPassive = false; var open: Path? = null
             visible.forEach { smp ->
                 val v = s.pick(smp)
-                if (v == null) { pen = false; return@forEach }
+                if (v == null) { pen = false; prev = null; open = null; return@forEach }
                 val p = Offset(x(smp.t), y(v.toFloat()))
-                if (!pen) { path.moveTo(p.x, p.y); if (idx == 0 && fill.isEmpty) { fill.moveTo(p.x, plot.bottom); firstX = p.x }; if (idx == 0) fill.lineTo(p.x, p.y); pen = true }
-                else { path.lineTo(p.x, p.y); if (idx == 0) fill.lineTo(p.x, p.y) }
+                if (!pen) { if (idx == 0 && fill.isEmpty) { fill.moveTo(p.x, plot.bottom); firstX = p.x }; if (idx == 0) fill.lineTo(p.x, p.y); pen = true }
+                else {
+                    val from = prev!!
+                    val target = if (smp.passive || prevPassive) dashed else path
+                    // Continue the open run so the dash pattern flows across short 1 s segments.
+                    if (open !== target) target.moveTo(from.x, from.y)
+                    target.lineTo(p.x, p.y); open = target
+                    if (idx == 0) fill.lineTo(p.x, p.y)
+                }
+                prev = p; prevPassive = smp.passive
                 lastX = p.x; last = v
             }
             if (idx == 0 && !fill.isEmpty) {
@@ -169,6 +179,8 @@ fun SignalChart(
                 drawPath(fill, Brush.verticalGradient(listOf(s.color.copy(alpha = 0.25f), s.color.copy(alpha = 0f)), startY = plot.top, endY = plot.bottom))
             }
             drawPath(path, s.color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            if (!dashed.isEmpty) drawPath(dashed, s.color.copy(alpha = 0.7f), style = Stroke(1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))))
             // current-value pill at the right edge
             last?.let { v ->
                 val yy = y(v.toFloat())

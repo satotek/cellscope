@@ -95,7 +95,7 @@ fun CellScopeRoot(
         if (subId != state.sim?.subId) {
             vm.setSelectedSub(subId)
             val label = state.sims.firstOrNull { it.subId == subId }?.label.orEmpty()
-            val message = resources.getString(if (switchHintShown) R.string.sim_switched else R.string.sim_switched_reset, label)
+            val message = resources.getString(if (switchHintShown) R.string.sim_switched else R.string.sim_switched_first, label)
             switchHintShown = true
             scope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()

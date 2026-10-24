@@ -213,7 +213,7 @@
     <string name="cell_details">セル詳細</string>
     <string name="cell_neighbour">近隣</string>
     <string name="sim_switched">%1$sを表示中</string>
-    <string name="sim_switched_reset">%1$sを表示中 · SIM切替でグラフ履歴はリセットされます</string>
+    <string name="sim_switched_first">%1$sを表示中 · 非表示中だった区間は電波強度のみの簡易記録（点線）です</string>
     <string name="snapshot_copy_image">画像をコピー</string>
     <string name="snapshot_copied">画像をコピーしました</string>
     <string name="snapshot_copy_failed">画像をコピーできませんでした</string>
@@ -221,7 +221,7 @@
     <string name="communication_live">現在の通信</string>
     <string name="communication_history">測定履歴</string>
     <string name="communication_source">データSIM：%1$s</string>
-    <string name="communication_scope">端末全体のモバイル通信量と、現在の接続のPingです。SIMを切り替えるとグラフはリセットされます。</string>
+    <string name="communication_scope">端末全体のモバイル通信量と、現在の接続のPingです。</string>
     <string name="speed_scope">モバイル回線を優先して、下り・上りを10秒ずつ測定します。</string>
     <string name="ca_title">キャリアアグリゲーション</string>
     <string name="ca_no_config">構成情報なし</string>
