@@ -5,7 +5,10 @@ import dev.satotek.cellscope.data.model.SignalSample
 
 /** Process-lifetime ring buffer so the chart survives Activity / ViewModel recreation. */
 object HistoryStore {
-    private const val MAX = 3600 // 1 h at 1 s
+    /** Kept by time, not count, so the longest chart range stays full at any poll interval. */
+    const val RETENTION_MS = 60 * 60_000L
+    // Backstop if timestamps stop advancing; the fastest poll (500 ms) needs 7200 for an hour.
+    private const val MAX = 10_000
     private val buf = ArrayDeque<SignalSample>()
     private val evs = ArrayDeque<CellEvent>()
 
@@ -26,7 +29,10 @@ object HistoryStore {
         if (prev != null) eventOrNull(prev, s)?.let {
             evs.addLast(it); while (evs.size > 200) evs.removeFirst()
         }
-        buf.addLast(s); while (buf.size > MAX) buf.removeFirst()
+        buf.addLast(s)
+        val cutoff = s.t - RETENTION_MS
+        while (buf.size > MAX || buf.first().t < cutoff) buf.removeFirst()
+        while (evs.isNotEmpty() && evs.first().t < cutoff) evs.removeFirst()
     }
     @Synchronized fun samples(): List<SignalSample> = buf.toList()
     @Synchronized fun events(): List<CellEvent> = evs.toList()

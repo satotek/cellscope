@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.ui.screens
 
+import dev.satotek.cellscope.ui.components.ChartWindows
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,7 +99,7 @@ fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: 
     var scrubbing by remember { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
     var metric by remember(initialT) { mutableStateOf(initialMetric) }
-    var minutes by remember(initialT) { mutableIntStateOf(5) }
+    var minutes by remember(initialT) { mutableIntStateOf(ChartWindows.DEFAULT_MINUTES) }
     var anchor by remember(initialT) { mutableLongStateOf(initialT) }
     val chart: @Composable (Boolean) -> Unit = { full ->
         SampleGraph(inspectedSamples, inspectedEvents, smp, metric, minutes, anchor, full,

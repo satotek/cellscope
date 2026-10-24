@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.ui.screens
 
+import dev.satotek.cellscope.ui.components.ChartWindows
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloseFullscreen
@@ -76,7 +77,7 @@ internal fun SampleGraph(
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(2, 5, 15, 60).forEach { value ->
+            ChartWindows.minutes.forEach { value ->
                 FilterChip(selected = minutes == value, onClick = { onMinutes(value) },
                     modifier = Modifier.weight(1f), label = { Text(stringResource(R.string.signal_minutes, value)) })
             }

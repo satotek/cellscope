@@ -42,6 +42,7 @@ import dev.satotek.cellscope.data.model.Snapshot
 import dev.satotek.cellscope.data.speed.SpeedPhase
 import dev.satotek.cellscope.data.speed.SpeedProgress
 import dev.satotek.cellscope.data.speed.SpeedResult
+import dev.satotek.cellscope.ui.components.ChartWindows
 import dev.satotek.cellscope.ui.components.Metric
 import dev.satotek.cellscope.ui.components.Panel
 import dev.satotek.cellscope.ui.components.standbyDdsLabel
@@ -66,7 +67,7 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
     val progress by vm.speedState.collectAsStateWithLifecycle()
     val results by vm.speedResults.collectAsStateWithLifecycle()
     var history by rememberSaveable { mutableStateOf(false) }
-    var minutes by rememberSaveable { androidx.compose.runtime.mutableIntStateOf(5) }
+    var minutes by rememberSaveable { androidx.compose.runtime.mutableIntStateOf(ChartWindows.DEFAULT_MINUTES) }
     androidx.activity.compose.BackHandler(history) { history = false }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -95,9 +96,9 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
                     item { LiveCard(s) }
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            listOf(2, 5, 15, 60).forEach { m ->
+                            ChartWindows.minutes.forEach { m ->
                                 androidx.compose.material3.FilterChip(selected = minutes == m,
-                                    onClick = { minutes = m }, label = { Text("${m}m") })
+                                    onClick = { minutes = m }, label = { Text(stringResource(R.string.signal_minutes, m)) })
                             }
                         }
                     }

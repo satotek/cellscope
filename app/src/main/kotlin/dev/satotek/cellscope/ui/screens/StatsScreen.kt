@@ -50,6 +50,7 @@ import dev.satotek.cellscope.data.stats.BandShare
 import dev.satotek.cellscope.data.stats.DistBin
 import dev.satotek.cellscope.data.stats.StatsAgg
 import dev.satotek.cellscope.data.stats.StatsAggregator
+import dev.satotek.cellscope.ui.components.ChartWindows
 import dev.satotek.cellscope.ui.components.EventRow
 import dev.satotek.cellscope.ui.components.Metric
 import dev.satotek.cellscope.ui.components.Panel
@@ -57,18 +58,11 @@ import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import java.util.Locale
 
-private val windows = listOf(
-    R.string.win_2m to 2 * 60_000L,
-    R.string.win_5m to 5 * 60_000L,
-    R.string.win_15m to 15 * 60_000L,
-    R.string.win_60m to 60 * 60_000L,
-)
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StatsScreen(s: Snapshot) {
-    var win by rememberSaveable { mutableIntStateOf(1) }
-    val windowMs = windows[win].second
+    var minutes by rememberSaveable { mutableIntStateOf(ChartWindows.DEFAULT_MINUTES) }
+    val windowMs = minutes * 60_000L
     val lastT = s.history.lastOrNull()?.t ?: 0L
     val range = (lastT - windowMs)..lastT
     val agg = remember(s.history, s.events, windowMs) { StatsAggregator.aggregate(s.history, s.events, range) }
@@ -87,15 +81,15 @@ fun StatsScreen(s: Snapshot) {
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
-                    windows.forEachIndexed { i, (label, _) ->
+                    ChartWindows.minutes.forEachIndexed { i, m ->
                         ToggleButton(
-                            checked = win == i, onCheckedChange = { win = i }, modifier = Modifier.weight(1f),
+                            checked = minutes == m, onCheckedChange = { minutes = m }, modifier = Modifier.weight(1f),
                             shapes = when (i) {
                                 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                windows.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                ChartWindows.minutes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                                 else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                             },
-                        ) { Text(stringResource(label), fontFamily = Mono, fontSize = 12.sp) }
+                        ) { Text(stringResource(R.string.signal_minutes, m), fontSize = 12.sp) }
                     }
                 }
             }

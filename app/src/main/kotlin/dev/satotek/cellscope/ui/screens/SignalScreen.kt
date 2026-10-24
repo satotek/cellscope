@@ -49,20 +49,19 @@ import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import dev.satotek.cellscope.ui.components.nrStatusLabel
 import androidx.compose.ui.text.style.TextOverflow
-
-private val windows = listOf(2, 5, 15, 60)
+import dev.satotek.cellscope.ui.components.ChartWindows
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SignalScreen(s: Snapshot) {
     val h = s.history
-    var win by rememberSaveable { mutableIntStateOf(1) }
+    var minutes by rememberSaveable { mutableIntStateOf(ChartWindows.DEFAULT_MINUTES) }
     // Tapped sample → inspector sheet. Kept as a time so it survives new samples arriving.
     var selectedT by remember { mutableStateOf<Long?>(null) }
     var selectedMetric by remember { mutableStateOf("RSRP") }
     var eventsExpanded by rememberSaveable { mutableStateOf(false) }
     val onTap: (SignalSample) -> Unit = { selectedT = it.t }
-    val windowMs = windows[win] * 60_000L
+    val windowMs = minutes * 60_000L
     val vis = h.filter { it.t >= (h.lastOrNull()?.t ?: 0L) - windowMs }
     val last = h.lastOrNull()
     val hasNr = vis.any { it.nrRsrp != null }
@@ -96,15 +95,15 @@ fun SignalScreen(s: Snapshot) {
                 Spacer(Modifier.height(10.dp))
                 // Expressive connected button group: the selected segment morphs into a pill.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
-                    windows.forEachIndexed { i, minutes ->
+                    ChartWindows.minutes.forEachIndexed { i, m ->
                         ToggleButton(
-                            checked = win == i, onCheckedChange = { win = i }, modifier = Modifier.weight(1f),
+                            checked = minutes == m, onCheckedChange = { minutes = m }, modifier = Modifier.weight(1f),
                             shapes = when (i) {
                                 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                windows.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                ChartWindows.minutes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                                 else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                             },
-                        ) { Text(stringResource(R.string.signal_minutes, minutes), fontSize = 12.sp) }
+                        ) { Text(stringResource(R.string.signal_minutes, m), fontSize = 12.sp) }
                     }
                 }
             }
