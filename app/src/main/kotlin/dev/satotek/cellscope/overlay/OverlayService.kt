@@ -17,6 +17,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -110,7 +111,7 @@ class OverlayService : Service() {
                 val s = vm.state.collectAsStateWithLifecycle().value
                 val page = vm.hudPage.collectAsStateWithLifecycle().value
                 val themeMode = vm.themeMode.collectAsStateWithLifecycle().value
-                CellScopeTheme(darkTheme = isDarkFor(themeMode)) { PipHud(s, page) }
+                CellScopeTheme(darkTheme = isDarkFor(themeMode)) { PipHud(s, page, closeInset = CLOSE_INSET_DP.dp) }
             }
         }
         val frame = FrameLayout(this)
@@ -126,7 +127,7 @@ class OverlayService : Service() {
             contentDescription = getString(R.string.overlay_close)
         }
         val pad = (4 * d).toInt()
-        val sz = (32 * d).toInt()
+        val sz = ((CLOSE_INSET_DP - 4) * d).toInt()
         frame.addView(close, FrameLayout.LayoutParams(sz, sz, Gravity.END or Gravity.TOP).apply { setMargins(0, pad, pad, 0) })
         var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var dragged = false
         compose.setOnTouchListener { _, e ->
@@ -168,6 +169,8 @@ class OverlayService : Service() {
     companion object {
         private const val CHANNEL = "hud"
         private const val NOTIF = 7
+        /** Room the close button takes from the HUD's top row, its 4 dp margin included. */
+        private const val CLOSE_INSET_DP = 28
 
         /** The saved preference survives a killed process; this says whether the HUD is really up. */
         @Volatile var running = false; private set

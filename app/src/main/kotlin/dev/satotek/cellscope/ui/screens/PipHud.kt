@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.satotek.cellscope.HudPage
@@ -43,14 +44,17 @@ import dev.satotek.cellscope.ui.theme.Mono
 import dev.satotek.cellscope.ui.theme.Palette
 import java.util.Locale
 
-/** Compact HUD for PiP / overlay; extra rows appear as the window gets taller. */
+/**
+ * Compact HUD for PiP / overlay; extra rows appear as the window gets taller. [closeInset] keeps the
+ * top row clear of the overlay's close button, which is a separate view drawn over this one.
+ */
 @Composable
-fun PipHud(s: Snapshot, page: HudPage = HudPage.SERVING) {
+fun PipHud(s: Snapshot, page: HudPage = HudPage.SERVING, closeInset: Dp = 0.dp) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Palette.bg)) {
         val h = maxHeight
         // Tiny window: keep the cycle pages. Anything overlay-sized or larger fills leftover space.
         if (h < 150.dp) {
-            if (page == HudPage.THROUGHPUT) ThroughputHud(s) else ServingOnly(s)
+            if (page == HudPage.THROUGHPUT) ThroughputHud(s, closeInset) else ServingOnly(s, closeInset)
             return@BoxWithConstraints
         }
         val ca = caOf(s)
@@ -63,7 +67,7 @@ fun PipHud(s: Snapshot, page: HudPage = HudPage.SERVING) {
                 .then(if (showPcc || showEvents) Modifier.verticalScroll(rememberScrollState()) else Modifier),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            ServingHeader(s, ca)
+            ServingHeader(s, ca, closeInset)
             if (showPcc) {
                 ca.pcc.forEachIndexed { i, c ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -95,10 +99,10 @@ fun PipHud(s: Snapshot, page: HudPage = HudPage.SERVING) {
 }
 
 @Composable
-private fun ServingOnly(s: Snapshot) {
+private fun ServingOnly(s: Snapshot, closeInset: Dp) {
     val ca = caOf(s)
     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.Center) {
-        ServingHeader(s, ca)
+        ServingHeader(s, ca, closeInset)
         ca.summary?.let {
             Spacer(Modifier.height(4.dp))
             Text(it, fontFamily = Mono, fontSize = 12.sp, color = Palette.lte, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth())
@@ -107,9 +111,9 @@ private fun ServingOnly(s: Snapshot) {
 }
 
 @Composable
-private fun ThroughputHud(s: Snapshot) {
+private fun ThroughputHud(s: Snapshot, closeInset: Dp) {
     val last = s.history.lastOrNull()
-    Row(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxSize().padding(start = 14.dp, end = 14.dp + closeInset, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
             Text("▼  ${mbps(last?.rxBps)}", fontFamily = Mono, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Palette.nr, maxLines = 1)
             Spacer(Modifier.height(4.dp))
@@ -120,7 +124,7 @@ private fun ThroughputHud(s: Snapshot) {
 }
 
 @Composable
-private fun ServingHeader(s: Snapshot, ca: CaInfo) {
+private fun ServingHeader(s: Snapshot, ca: CaInfo, closeInset: Dp = 0.dp) {
     val c = s.serving
     val rat = c?.rat ?: Rat.UNKNOWN
     Column(Modifier.fillMaxWidth()) {
@@ -137,6 +141,7 @@ private fun ServingHeader(s: Snapshot, ca: CaInfo) {
             Text(fmt(c?.rsrp), fontFamily = Mono, fontWeight = FontWeight.Bold, fontSize = 28.sp, color = Palette.rsrp(c?.rsrp), maxLines = 1)
             Spacer(Modifier.width(4.dp))
             Text("dBm", style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
+            Spacer(Modifier.width(closeInset))
         }
         Spacer(Modifier.height(4.dp))
         // Row 2 gets the full width so "PCI · SINR" never truncates next to the CC tag.
