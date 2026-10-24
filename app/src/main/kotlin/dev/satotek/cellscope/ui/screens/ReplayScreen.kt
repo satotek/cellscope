@@ -261,7 +261,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                     run {
                         val maxMbps = (vis.maxOfOrNull { maxOf(it.rxBps ?: 0, it.txBps ?: 0) } ?: 0L) / 1_000_000.0
                         val top = listOf(5, 10, 20, 50, 100, 200, 500, 1000, 2000).firstOrNull { it > maxMbps } ?: 4000
-                        ChartPanel("Throughput", "Mbps", last?.rxBps?.let { (it / 1_000_000).toInt() }, Palette.text, false, null, subtitle = "▼ ${fmtMbps(last?.rxBps)}  ▲ ${fmtMbps(last?.txBps)} Mbps") {
+                        ChartPanel(stringResource(R.string.stats_throughput), "Mbps", last?.rxBps?.let { (it / 1_000_000).toInt() }, Palette.text, false, null, subtitle = "▼ ${fmtMbps(last?.rxBps)}  ▲ ${fmtMbps(last?.txBps)} Mbps") {
                             SignalChart(h, events, listOf(
                                 Series("rx", Palette.nr) { it.rxBps?.let { b -> (b / 100_000).toInt() } },
                                 Series("tx", Palette.wcdma) { it.txBps?.let { b -> (b / 100_000).toInt() } },
@@ -274,10 +274,10 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                         val keys = counts.entries.sortedByDescending { it.value }.take(6).map { it.key }
                         val palette = listOf(Palette.wcdma, Color(0xFFB39DFF), Color(0xFFFF8AD8), Color(0xFF6EE7F0), Color(0xFFFFA36E), Color(0xFFC7F464))
                         Panel {
-                            Text("NEIGHBOURS RSRP", style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                            Text(stringResource(R.string.signal_neighbours), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
                             Spacer(Modifier.height(4.dp))
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
-                                Legend(servingColor, "serving")
+                                Legend(servingColor, stringResource(R.string.signal_serving))
                                 keys.forEachIndexed { i, k -> Legend(palette[i], k) }
                             }
                             Spacer(Modifier.height(6.dp))
@@ -297,7 +297,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                         Panel {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("PING · RTT ms", style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                                    Text(stringResource(R.string.ping_rtt), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
                                     Text("min ${fmtMs(st.min)} · avg ${fmtMs(st.avg)} · max ${fmtMs(st.max)} · jitter ${fmtMs(st.jitter)} · loss ${String.format(Locale.US, "%.1f", st.lossPct)}%", fontFamily = Mono, fontSize = 11.sp, color = Palette.text)
                                 }
                                 val c = when { lastRtt == null -> Palette.textDim; lastRtt < 0 -> Palette.poor; lastRtt < 50 -> Palette.good; lastRtt < 120 -> Palette.fair; else -> Palette.poor }
@@ -312,7 +312,7 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
                 }
             }
         }
-        item { Text("CELL CHANGES", style = MaterialTheme.typography.labelSmall, color = Palette.textDim, modifier = Modifier.padding(top = 4.dp)) }
+        item { Text(stringResource(R.string.signal_changes, events.size), style = MaterialTheme.typography.labelSmall, color = Palette.textDim, modifier = Modifier.padding(top = 4.dp)) }
         if (events.isEmpty()) item { Text("—", fontFamily = Mono, color = Palette.textDim) }
         items(events.asReversed().take(30)) { EventRow(it) }
     }

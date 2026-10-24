@@ -338,4 +338,5 @@
     <string name="nr_restricted_short">制限あり</string>
     <string name="nr_disconnected_short">未接続</string>
     <string name="nr_unknown_short">不明</string>
+    <string name="ping_rtt">Ping · RTT（ms）</string>
 </resources>

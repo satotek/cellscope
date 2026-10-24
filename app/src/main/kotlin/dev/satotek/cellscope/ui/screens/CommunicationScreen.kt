@@ -105,7 +105,7 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
         item {
             val maxMbps = (vis.maxOfOrNull { maxOf(it.rxBps ?: 0, it.txBps ?: 0) } ?: 0L) / 1_000_000.0
             val top = listOf(5, 10, 20, 50, 100, 200, 500, 1000, 2000).firstOrNull { it > maxMbps } ?: 4000
-            ChartPanel("Throughput", "Mbps", last?.rxBps?.let { (it / 1_000_000).toInt() }, Palette.text, false, null, subtitle = "▼ ${fmtMbps(last?.rxBps)}  ▲ ${fmtMbps(last?.txBps)} Mbps") {
+            ChartPanel(stringResource(R.string.stats_throughput), "Mbps", last?.rxBps?.let { (it / 1_000_000).toInt() }, Palette.text, false, null, subtitle = "▼ ${fmtMbps(last?.rxBps)}  ▲ ${fmtMbps(last?.txBps)} Mbps") {
                 SignalChart(h, s.events, listOf(
                     Series("rx", Palette.nr) { it.rxBps?.let { b -> (b / 100_000).toInt() } },
                     Series("tx", Palette.wcdma) { it.txBps?.let { b -> (b / 100_000).toInt() } },
@@ -122,7 +122,7 @@ fun CommunicationScreen(vm: MainViewModel, s: Snapshot) {
             Panel {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("PING · RTT ms", style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
+                        Text(stringResource(R.string.ping_rtt), style = MaterialTheme.typography.labelSmall, color = Palette.textDim)
                         Text("min ${fmtMs(st.min)} · avg ${fmtMs(st.avg)} · max ${fmtMs(st.max)} · jitter ${fmtMs(st.jitter)} · loss ${String.format(Locale.US, "%.1f", st.lossPct)}%", fontFamily = Mono, fontSize = 11.sp, color = Palette.text)
                     }
                     val c = when { lastRtt == null -> Palette.textDim; lastRtt < 0 -> Palette.poor; lastRtt < 50 -> Palette.good; lastRtt < 120 -> Palette.fair; else -> Palette.poor }
