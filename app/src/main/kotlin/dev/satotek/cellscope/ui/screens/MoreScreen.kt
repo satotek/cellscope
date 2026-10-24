@@ -1,6 +1,9 @@
 package dev.satotek.cellscope.ui.screens
 
 import dev.satotek.cellscope.BuildConfig
+import dev.satotek.cellscope.data.update.UpdateState
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.Switch
 import android.content.Intent
 import android.net.Uri
 import androidx.core.graphics.drawable.toBitmap
@@ -138,9 +141,13 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
     var replayPath by rememberSaveable { mutableStateOf<String?>(null) }
     val emptySpeed = remember { MutableStateFlow(emptyList<SpeedResult>()) }
     val speedResults by (vm?.speedResults ?: emptySpeed).collectAsStateWithLifecycle()
+    val noUpdate = remember { MutableStateFlow<UpdateState>(UpdateState.Unknown) }
+    val update by (vm?.update ?: noUpdate).collectAsStateWithLifecycle()
+    val autoOn = remember { MutableStateFlow(true) }
+    val updateAuto by (vm?.updateAuto ?: autoOn).collectAsStateWithLifecycle()
     val s = sub
     when {
-        s == null -> MoreHome(onOpen = { sub = it }, onExit = onExit)
+        s == null -> MoreHome(update, onOpen = { sub = it }, onExit = onExit)
         s.startsWith("set:") -> {
             val sec = s.removePrefix("set:")
             SubScreen(stringResource(settingsSections.first { it.id == sec }.title), onBack = { sub = null }) { setup(sec) }
@@ -164,10 +171,13 @@ fun MoreScreen(state: Snapshot, privApp: PrivAppInstaller.State?, setup: @Compos
         }
         "backup" -> SubScreen(stringResource(R.string.more_backup), onBack = { sub = null }) { BackupPane(vm) }
         "snapshots" -> SubScreen(stringResource(R.string.more_snapshots), onBack = { sub = null }) { SnapshotsPane() }
-        "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) { AboutPane(state, privApp, onOpen = { sub = it }) }
+        "about" -> SubScreen(stringResource(R.string.more_about), onBack = { sub = null }) {
+            AboutPane(state, privApp, onOpen = { sub = it }, update = update, updateAuto = updateAuto,
+                onCheckUpdate = { vm?.checkForUpdates() }, onUpdateAuto = { vm?.setUpdateAuto(it) })
+        }
         "license" -> SubScreen(stringResource(R.string.about_license), onBack = { sub = "about" }) { AssetTextPane("LICENSE") }
         "oss" -> SubScreen(stringResource(R.string.about_oss), onBack = { sub = "about" }) { OssPane() }
-        else -> MoreHome(onOpen = { sub = it }, onExit = onExit)
+        else -> MoreHome(update, onOpen = { sub = it }, onExit = onExit)
         }
     }
 }
@@ -196,10 +206,22 @@ private val miscRows = listOf(
 )
 
 @Composable
-private fun MoreHome(onOpen: (String) -> Unit, onExit: () -> Unit) {
+private fun MoreHome(update: UpdateState, onOpen: (String) -> Unit, onExit: () -> Unit) {
     var confirmExit by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text(stringResource(R.string.tab_more), style = MaterialTheme.typography.headlineMedium, color = Palette.text) }
+        if (update is UpdateState.Available) item {
+            Panel(padding = 0.dp) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.update_available, update.latest.version), color = Palette.accent) },
+                    supportingContent = { Text(stringResource(R.string.update_details)) },
+                    leadingContent = { Icon(Icons.Outlined.SystemUpdate, null, tint = Palette.accent) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = Palette.textDim) },
+                    modifier = Modifier.clickable { onOpen("about") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+        }
         item { RowGroup(stringResource(R.string.more_setup), settingsSections) { onOpen("set:$it") } }
         item { RowGroup(stringResource(R.string.more_data), dataRows, onOpen) }
         item { RowGroup(null, miscRows, onOpen) }
@@ -709,7 +731,11 @@ object AppInfo {
 }
 
 @Composable
-private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?, onOpen: (String) -> Unit) {
+private fun AboutPane(
+    state: Snapshot, privApp: PrivAppInstaller.State?, onOpen: (String) -> Unit,
+    update: UpdateState = UpdateState.Unknown, updateAuto: Boolean = true,
+    onCheckUpdate: () -> Unit = {}, onUpdateAuto: (Boolean) -> Unit = {},
+) {
     val context = LocalContext.current
     val pkgInfo = remember {
         runCatching {
@@ -758,6 +784,9 @@ private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?, onOpen:
             }
         }
         item {
+            UpdatePanel(update, updateAuto, onCheckUpdate, onUpdateAuto, ::open)
+        }
+        item {
             Panel(padding = 0.dp) {
                 LinkRow(stringResource(R.string.about_author), AppInfo.AUTHOR, external = true) { open(AppInfo.AUTHOR_URL) }
                 HorizontalDivider(color = Palette.outline)
@@ -767,6 +796,52 @@ private fun AboutPane(state: Snapshot, privApp: PrivAppInstaller.State?, onOpen:
                 HorizontalDivider(color = Palette.outline)
                 LinkRow(stringResource(R.string.about_oss), null) { onOpen("oss") }
             }
+        }
+    }
+}
+
+@Composable
+private fun UpdatePanel(update: UpdateState, auto: Boolean, onCheck: () -> Unit, onAuto: (Boolean) -> Unit, open: (String) -> Unit) {
+    val time = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
+    val checkedAt = when (update) {
+        is UpdateState.UpToDate -> update.checkedAt
+        is UpdateState.Available -> update.checkedAt
+        is UpdateState.Failed -> update.checkedAt
+        else -> null
+    }
+    Panel(title = stringResource(R.string.update_title)) {
+        Text(
+            when (update) {
+                UpdateState.Unknown -> stringResource(R.string.update_unknown)
+                UpdateState.Checking -> stringResource(R.string.update_checking)
+                is UpdateState.UpToDate -> stringResource(R.string.update_up_to_date, update.latest.version)
+                is UpdateState.Available -> stringResource(R.string.update_available, update.latest.version)
+                is UpdateState.Failed -> stringResource(R.string.update_failed, update.message)
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = when (update) {
+                is UpdateState.Available -> Palette.accent
+                is UpdateState.Failed -> Palette.poor
+                else -> Palette.text
+            },
+        )
+        checkedAt?.takeIf { it > 0 }?.let {
+            Text(stringResource(R.string.update_checked_at, time.format(Date(it))), fontSize = 12.sp, color = Palette.textDim)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = onCheck, enabled = update != UpdateState.Checking) { Text(stringResource(R.string.update_check)) }
+            if (update is UpdateState.Available) {
+                TextButton(onClick = { open(update.latest.url) }) { Text(stringResource(R.string.update_open)) }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.update_auto), style = MaterialTheme.typography.bodyMedium, color = Palette.text)
+                Text(stringResource(R.string.update_auto_desc), fontSize = 12.sp, color = Palette.textDim)
+            }
+            Switch(checked = auto, onCheckedChange = onAuto)
         }
     }
 }

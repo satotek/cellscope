@@ -133,6 +133,8 @@ fun CellScopeRoot(
         return
     }
 
+    val update by vm.update.collectAsStateWithLifecycle()
+    val updateAvailable = update is dev.satotek.cellscope.data.update.UpdateState.Available
     Scaffold(
         containerColor = Palette.bg,
         floatingActionButton = {
@@ -145,7 +147,12 @@ fun CellScopeRoot(
             ShortNavigationBar {
                 Tab.entries.forEachIndexed { i, t ->
                     val label = stringResource(t.labelRes)
-                    ShortNavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = { Icon(t.icon, label) }, label = { Text(label) })
+                    ShortNavigationBarItem(selected = tab == i, onClick = { tab = i }, icon = {
+                        // A new release is announced on More, so the tab carries the dot that leads there.
+                        if (t == Tab.MORE && updateAvailable) {
+                            androidx.compose.material3.BadgedBox(badge = { androidx.compose.material3.Badge() }) { Icon(t.icon, label) }
+                        } else Icon(t.icon, label)
+                    }, label = { Text(label) })
                 }
             }
         }

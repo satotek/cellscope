@@ -9,6 +9,7 @@ import dev.satotek.cellscope.data.telephony.TelephonyRepository
 import dev.satotek.cellscope.data.visits.VisitedCellsStore
 import dev.satotek.cellscope.data.location.LocationRepository
 import dev.satotek.cellscope.data.settings.SettingsStore
+import dev.satotek.cellscope.data.update.UpdateRepository
 
 /** Owns shared data sources independently of Compose and activity recreation. */
 class AppDependencies(context: Context) {
@@ -22,4 +23,5 @@ class AppDependencies(context: Context) {
 
     val settings = SettingsStore(app)
     val location = LocationRepository(app)
+    val updates = UpdateRepository(app)
 }

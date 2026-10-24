@@ -41,6 +41,10 @@ class SettingsStore(context: Context) : SpeedResultStore {
         get() = prefs.getInt("gnb_bits", 24)
         set(value) { prefs.edit().putInt("gnb_bits", value).apply() }
 
+    var updateAuto: Boolean
+        get() = prefs.getBoolean("update_auto", true)
+        set(value) { prefs.edit().putBoolean("update_auto", value).apply() }
+
     override fun load(): List<SpeedResult> {
         val raw = prefs.getString("speed_results", null) ?: return emptyList()
         return runCatching {

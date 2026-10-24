@@ -61,6 +61,18 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
 
     private val settings = dependencies.settings
 
+    // ---- update check --------------------------------------------------------------------------
+    private val updates = dependencies.updates
+    val update: StateFlow<dev.satotek.cellscope.data.update.UpdateState> = updates.state
+    private val _updateAuto = MutableStateFlow(settings.updateAuto)
+    val updateAuto: StateFlow<Boolean> = _updateAuto
+    fun checkForUpdates() = viewModelScope.launch { updates.check() }
+
+    fun setUpdateAuto(on: Boolean) {
+        _updateAuto.value = on; settings.updateAuto = on
+        if (on && updates.isDue()) checkForUpdates()
+    }
+
     private val _pollIntervalMs = MutableStateFlow(settings.pollIntervalMs)
     val pollIntervalMs: StateFlow<Long> = _pollIntervalMs
     val recording get() = recorder.active
@@ -259,6 +271,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         setThemeMode(settings.themeMode)
         setPipAuto(settings.pipAuto)
         setGnbBits(settings.gnbBits)
+        setUpdateAuto(settings.updateAuto)
         speed.reload()
         viewModelScope.launch { visitedStore.reload() }
         reconcileOverlay()   // permission-gated: never start the service blindly
@@ -280,6 +293,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         bindRepoFlows()
         viewModelScope.launch { simsRepo.sims.collect { onSims(it) } }
         viewModelScope.launch { summaryMonitor.summaries.collect { summaries -> _state.update { it.copy(simSummaries = summaries) } } }
+        if (_updateAuto.value && updates.isDue()) checkForUpdates()
         viewModelScope.launch {
             visitedStore.reload()
             for (sample in visitSamples) visitedStore.observe(sample)

@@ -298,4 +298,16 @@
     <string name="signal_inspect_chart">%1$sグラフ、選択時刻 %2$s</string>
     <string name="signal_previous_sample">前の測定</string>
     <string name="signal_next_sample">次の測定</string>
+    <string name="update_title">アップデート</string>
+    <string name="update_check">更新を確認</string>
+    <string name="update_checking">確認中…</string>
+    <string name="update_available">%1$s が利用可能です</string>
+    <string name="update_details">タップして詳細を表示</string>
+    <string name="update_up_to_date">最新です（%1$s）</string>
+    <string name="update_unknown">まだ確認していません</string>
+    <string name="update_failed">確認できませんでした: %1$s</string>
+    <string name="update_checked_at">最終確認: %1$s</string>
+    <string name="update_open">リリースページを開く</string>
+    <string name="update_auto">自動で確認</string>
+    <string name="update_auto_desc">1日1回、GitHub に最新リリースを問い合わせます。</string>
 </resources>
