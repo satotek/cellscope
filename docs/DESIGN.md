@@ -173,7 +173,7 @@ APN / 種別 / 状態 / RAT / iface / IPアドレス / DNS / P-CSCF / MTU / QoS�
 - NR の gNB / cell 分解に使う gNB ID 長は Setup で選択（22〜32 bit、既定 24。事業者依存。NCI そのものも表示する）。
 - バンド表は 3GPP の全バンド（LTE B1〜B88、NR n1〜n104 + FR2、UMTS I〜XXV）。モデムが `CellIdentity.bands` を返す場合はそちらを優先し、表は近隣セル等で空のときの補完。
 - Setup「無線」: RAT 固定（自動 / 5G+4G / 5G(SA のみ) / 4G / 4G+3G / 3G、`setAllowedNetworkTypesForReason`、priv-app）、Wi‑Fi・機内モード切替と再登録（root）。
-  バンド固定・セル固定は Android に API が無く Tensor では不可（NSG の band lock は Qualcomm DIAG 依存）。
+  バンド固定・セル固定は Android に API が無く Pixel 11 では不可（NSG の band lock はモデムの診断インターフェース依存）。
 - `PhysicalChannelConfigListener` の登録は **`CellInfoListener` と同じコールバックに同居**させる。位置権限の評価は
   位置系イベントを含むレコードでしか行われず、単独登録だと PCI が `PHYSICAL_CELL_ID_UNKNOWN` に伏せられて届く。
 - `PhysicalChannelConfigListener` は TelephonyRegistry 上 `READ_PRECISE_PHONE_STATE` グループ。これが無いと登録は

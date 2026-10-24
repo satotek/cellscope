@@ -26,8 +26,8 @@ Kotlin + Jetpack Compose（Material 3 Expressive）のネイティブアプリ�
 | root | 上 + `su` | `dumpsys telephony.registry` の `PhysicalChannelConfig`（PCC/SCC・帯域幅・band・PCI）、IMS登録状態、`logcat -b radio`、modem/RIL props |
 | priv-app | 上 + `READ_PRIVILEGED_PHONE_STATE` / `READ_PRECISE_PHONE_STATE` / `MODIFY_PHONE_STATE` | `PhysicalChannelConfigListener` がpush型で動く（dumpsysポーリング不要）、VoNR状態、**RAT 固定** |
 
-**取れないもの**: RRC/NAS のL3メッセージ。Network Signal Guru はQualcomm DIAG経由で
-モデムから直接読むが、Tensor G6（Samsung Shannon系モデム）にDIAGは無い。
+**取れないもの**: RRC/NAS のL3メッセージ。Network Signal Guru はモデムの診断インターフェース
+（Qualcomm DIAG など）から直接読むが、Pixel 11（Tensor G6、MediaTek モデム）は NSG の対応端末に入っていない。
 これはアプリ側でどうにもならない構造的な制約。
 
 ## ビルド / インストール
