@@ -34,7 +34,8 @@ Kotlin + Jetpack Compose（Material 3 Expressive）のネイティブアプリ�
 
 ```bash
 # リポジトリ直下で
-./install.sh          # debug APK を adb install（通常 / root モード）
+./install.sh          # debug 版（dev.satotek.cellscope.debug）を adb install。release 版と共存する
+./install.sh release  # release 鍵の版を adb install。release の priv-app をそのまま更新できる
 ./make-module.sh      # release APK + KSU priv-app モジュール zip を dist/ に生成
 ```
 
@@ -46,6 +47,22 @@ priv-app 化の手順（どちらか）:
 
 root モードは KernelSU Manager でこのアプリに su を許可するだけ。
 priv-app モジュールの仕組みは [docs/DESIGN.md](docs/DESIGN.md#priv-app-モジュール) を参照。
+
+## 署名とリリース
+
+release はリリース鍵、debug はマシンごとの debug 鍵で署名する。debug は
+`dev.satotek.cellscope.debug`（ラベル「CellScope Debug」）という別アプリになり、
+アプリ内の priv-app 化も `cellscope_privapp_debug` という別モジュールになる。
+debuggable な APK をリリース鍵で署名すると、release 版を上書きして `run-as` で
+データを読めてしまうため、鍵は分けている。
+
+- 鍵の場所: `~/.config/cellscope/keystore.properties`（`storeFile` / `storePassword` /
+  `keyAlias` / `keyPassword`）。別の場所なら `-Pcellscope.signing=<path>`。
+  無い環境（CI の通常ビルドなど）はマシンごとの debug 鍵になる。
+- 鍵を失うと同じアプリとして更新できなくなる。`release.jks` とパスワードは
+  パスワードマネージャーなどにバックアップしておく。
+- バージョンは `gradle.properties` の `cellscope.versionName` だけで決まり、
+  versionCode は `major*10000 + minor*100 + patch`。
 
 ## ドキュメント
 

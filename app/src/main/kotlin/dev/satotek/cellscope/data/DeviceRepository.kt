@@ -1,5 +1,6 @@
 package dev.satotek.cellscope.data
 
+import dev.satotek.cellscope.BuildConfig
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.wifi.WifiManager
@@ -25,8 +26,7 @@ class DeviceRepository(context: Context) {
     )
 
     suspend fun installPrivApp(): String? {
-        val version = runCatching { app.packageManager.getPackageInfo(app.packageName, 0).versionName }.getOrNull() ?: "0"
-        return PrivAppInstaller.install(app, version)
+        return PrivAppInstaller.install(app, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE.toLong())
     }
 
     fun canDrawOverlays() = Settings.canDrawOverlays(app)

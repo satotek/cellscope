@@ -1,6 +1,34 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// One version for the APK and the priv-app module; a release tag must match it.
+val appVersion = providers.gradleProperty("cellscope.versionName").get()
+val appVersionCode = appVersion.split(".").map(String::toInt).let { (major, minor, patch) ->
+    require(minor < 100 && patch < 100) { "versionName $appVersion does not fit the versionCode scheme" }
+    major * 10_000 + minor * 100 + patch
+}
+
+// CI passes the release key through the environment; a workstation keeps it in a properties
+// file outside the repository. Without either, builds fall back to the per-machine debug key.
+val releaseSigning: Map<String, String>? = run {
+    val env = System.getenv()
+    if (env["CELLSCOPE_KEYSTORE"] != null) return@run mapOf(
+        "storeFile" to env.getValue("CELLSCOPE_KEYSTORE"),
+        "storePassword" to env.getValue("CELLSCOPE_KEYSTORE_PASSWORD"),
+        "keyAlias" to env.getValue("CELLSCOPE_KEY_ALIAS"),
+        "keyPassword" to env.getValue("CELLSCOPE_KEY_PASSWORD"),
+    )
+    val file = providers.gradleProperty("cellscope.signing").orNull?.let(::File)
+        ?: File(System.getProperty("user.home"), ".config/cellscope/keystore.properties")
+    if (!file.isFile) return@run null
+    Properties().apply { file.inputStream().use(::load) }.let { p -> p.stringPropertyNames().associateWith(p::getProperty) }
+}
+if (releaseSigning == null && providers.gradleProperty("cellscope.requireReleaseSigning").isPresent) {
+    throw GradleException("Release signing requested but no key is configured")
 }
 
 android {
@@ -12,8 +40,19 @@ android {
         applicationId = "dev.satotek.cellscope"
         minSdk = 34
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
+    }
+
+    signingConfigs {
+        releaseSigning?.let { k ->
+            create("release") {
+                storeFile = file(k.getValue("storeFile"))
+                storePassword = k.getValue("storePassword")
+                keyAlias = k.getValue("keyAlias")
+                keyPassword = k.getValue("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -28,7 +67,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
