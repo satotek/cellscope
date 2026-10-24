@@ -64,6 +64,20 @@ debuggable な APK をリリース鍵で署名すると、release 版を上書�
 - バージョンは `gradle.properties` の `cellscope.versionName` だけで決まり、
   versionCode は `major*10000 + minor*100 + patch`。
 
+リリース手順:
+
+```bash
+# cellscope.versionName を上げてコミットしたあと
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+タグの push で `.github/workflows/release.yml` が、タグとバージョンの一致と署名証明書を
+確かめてから、APK と priv-app モジュール zip を GitHub Release に添付する。
+CI 側の鍵は GitHub Environment `release`（`v*` タグからのみ利用可）の Secrets
+`CELLSCOPE_KEYSTORE_BASE64` / `CELLSCOPE_KEYSTORE_PASSWORD` / `CELLSCOPE_KEY_ALIAS` /
+`CELLSCOPE_KEY_PASSWORD` に、証明書の SHA-256 は同じ Environment の Variables
+`CELLSCOPE_CERT_SHA256` に置く。ワークフローの Actions はコミット SHA で固定している。
+
 ## ドキュメント
 
 - [docs/DESIGN.md](docs/DESIGN.md) — 構成、各画面の実装メモ、Android telephony の落とし穴
