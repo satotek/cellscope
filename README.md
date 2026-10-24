@@ -73,6 +73,10 @@ git tag v0.2.0 && git push origin v0.2.0
 
 タグの push で `.github/workflows/release.yml` が、タグとバージョンの一致と署名証明書を
 確かめてから、APK と priv-app モジュール zip を GitHub Release に添付する。
+あわせて `update.json` と `changelog.md` も添付する。モジュールの `module.prop` の
+`updateJson` が `releases/latest/download/update.json` を指しているので、KernelSU / Magisk の
+マネージャーが新しいリリースを更新として検出する（`updateJson` 入りの版を一度入れたあとから）。
+アプリ内の priv-app 化で作るモジュールも、release 版なら同じ `updateJson` を持つ。
 CI 側の鍵は GitHub Environment `release`（`v*` タグからのみ利用可）の Secrets
 `CELLSCOPE_KEYSTORE_BASE64` / `CELLSCOPE_KEYSTORE_PASSWORD` / `CELLSCOPE_KEY_ALIAS` /
 `CELLSCOPE_KEY_PASSWORD` に、証明書の SHA-256 は同じ Environment の Variables

@@ -3,4 +3,5 @@ name=CellScope priv-app
 version=v0.1.0
 versionCode=1
 author=satotek.dev
+updateJson=https://github.com/satotek/cellscope/releases/latest/download/update.json
 description=Mounts CellScope into /system/priv-app so it gets READ_PRIVILEGED_PHONE_STATE (PhysicalChannelConfig, NR/CA details).

@@ -60,7 +60,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk "dist/cellscope-${GITHUB_REF_NAME}.apk"
-          gh release create "$GITHUB_REF_NAME" --generate-notes \
-            "dist/cellscope-${GITHUB_REF_NAME}.apk" "dist/cellscope-privapp-${GITHUB_REF_NAME}.zip"
+          zip="dist/cellscope-privapp-${GITHUB_REF_NAME}.zip"
+          gh release create "$GITHUB_REF_NAME" --generate-notes "dist/cellscope-${GITHUB_REF_NAME}.apk" "$zip"
+
+          # KernelSU/Magisk poll releases/latest/download/update.json (the updateJson in module.prop),
+          # so the newest release answers for every installed module. They render the changelog URL
+          # as text, hence the generated notes as a Markdown asset rather than the HTML release page.
+          gh release view "$GITHUB_REF_NAME" --json body --jq .body > dist/changelog.md
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          jq -n --arg version "$GITHUB_REF_NAME" \
+            --argjson versionCode "$(unzip -p "$zip" module.prop | sed -n 's/^versionCode=//p')" \
+            --arg zipUrl "$base/$(basename "$zip")" \
+            --arg changelog "$base/changelog.md" \
+            '{version: $version, versionCode: $versionCode, zipUrl: $zipUrl, changelog: $changelog}' > dist/update.json
+          cat dist/update.json
+          gh release upload "$GITHUB_REF_NAME" dist/changelog.md dist/update.json
       - run: rm -f "$RUNNER_TEMP/release.jks"
         if: always()
