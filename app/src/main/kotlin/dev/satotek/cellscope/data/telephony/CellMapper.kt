@@ -18,6 +18,8 @@ object CellMapper {
         set(v) { field = v.coerceIn(22, 32) }
 
 
+    private const val LTE_TA_MAX = 1282
+
     private fun Int.orNull(): Int? = if (this == CellInfo.UNAVAILABLE || this == Int.MAX_VALUE || this == Int.MIN_VALUE) null else this
     private fun Long.orNull(): Long? = if (this == CellInfo.UNAVAILABLE_LONG || this == Long.MAX_VALUE) null else this
 
@@ -77,7 +79,9 @@ object CellMapper {
             pci = id.pci.orNull(), tac = id.tac.orNull(), arfcn = earfcn, bands = bands,
             bandwidthKhz = id.bandwidth.orNull(), dlMhz = f.dlMhz, ulMhz = f.ulMhz,
             rssi = ss.rssi.orNull(), rsrp = ss.rsrp.orNull(), rsrq = ss.rsrq.orNull(), sinr = ss.rssnr.orNull(),
-            cqi = ss.cqi.orNull(), ta = ss.timingAdvance.orNull(),
+            // 1282 is the top of the documented 0..1282 range, but modems report it when no TA has been
+            // measured (idle, neighbour cells); taken literally it reads as a cell ~100 km away.
+            cqi = ss.cqi.orNull(), ta = ss.timingAdvance.orNull()?.takeIf { it < LTE_TA_MAX },
             csiRsrp = null, csiRsrq = null, csiSinr = null,
             level = ss.level, asuLevel = ss.asuLevel.orNull(), timestampNanos = info.timestampMillis * 1_000_000,
         )

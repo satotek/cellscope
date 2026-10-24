@@ -43,8 +43,15 @@ data class CellEntry(
         rat == Rat.LTE -> bands.joinToString("/") { "B$it" }
         else -> bands.joinToString("/")
     }
-    /** Estimated distance from TA: LTE TA unit = 78.12 m; NR reports microseconds (c/2 ≈ 150 m/µs). */
-    val taDistanceMeters: Double? get() = ta?.let { if (rat == Rat.NR) it * 150.0 else it * 78.12 }
+    /** Estimated distance from TA: LTE TA unit = 78.12 m; GSM bit period ≈ 553.85 m; NR reports microseconds (c/2 ≈ 150 m/µs). */
+    val taDistanceMeters: Double? get() = ta?.let {
+        when (rat) {
+            Rat.NR -> it * 150.0
+            Rat.LTE -> it * 78.12
+            Rat.GSM -> it * 553.85
+            else -> null
+        }
+    }
 }
 
 /** One carrier component reported through PhysicalChannelConfig (privileged / dumpsys). */
