@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -139,10 +140,13 @@ fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: 
     } else ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         sheetGesturesEnabled = !scrubbing) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+        // Sized to its content, so the chart behind stays in view; 92% is only the cap for a long
+        // neighbour list, which then scrolls on its own.
+        val cap = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.92f).dp
+        Column(Modifier.fillMaxWidth().heightIn(max = cap).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             chart(false)
             Spacer(Modifier.height(8.dp))
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Metric("RSRP", fmt(smp.rsrp), "dBm", Palette.rsrp(smp.rsrp), big = true)
                 Metric("RSRQ", fmt(smp.rsrq), "dB", Palette.rsrq(smp.rsrq), big = true)
