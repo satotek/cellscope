@@ -306,7 +306,9 @@ private fun ReplayBody(data: ReplayData, fileName: String) {
         if (events.isEmpty()) item { Text("—", fontFamily = Mono, color = Palette.textDim) }
         items(events.asReversed().take(30)) { EventRow(it) }
     }
-    selectedT?.let { t -> if (h.isNotEmpty()) SampleSheet(h, events, t, onDismiss = { selectedT = null }, initialMetric = selectedMetric) }
+    selectedT?.let { t ->
+        if (h.isNotEmpty()) SampleSheet(h, events, t, onDismiss = { selectedT = null }, initialMetric = selectedMetric, pinned = true)
+    }
 }
 
 private fun fmtMs(v: Double?): String = v?.let { String.format(Locale.US, "%.0f", it) } ?: "—"

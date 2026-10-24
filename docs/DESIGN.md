@@ -142,6 +142,9 @@ Home ヘッダーの 📷 で「今この場所でこう見えた」を 1 枚の
 記録は CSV（表計算用、serving のみ）と **JSONL**（1 行 = 1 `SignalSample`、近隣・NR SCC・スループット・RTT・位置込み）を並行して書く。
 More → ログ → タップで Replay: Signal タブと同じパネル（`SignalPanels.kt` に共通化）を全区間で表示、
 **ピンチで時間軸ズーム・ドラッグでパン**（最小 10 秒）、タップで `SampleSheet`。CSV しか無い古いログは serving 系列だけで開く。
+Replay の `SampleSheet` は `pinned = true` で常に上端まで開く: なぞって時刻を選ぶとサンプルごとに近隣セル数が変わり、
+内容に合わせてシートが伸縮するとグラフが指の下で動いてしまうため。中身が短いときのドラッグでシートごと動かないよう
+シートのドラッグは無効にしてある（閉じるのは外側タップ・戻る・ハンドルのタップ）。
 `SignalChart` / `RatStrip` の `range` 引数がズーム用（null なら従来どおり最新から `windowMs`）。
 
 ## More タブ

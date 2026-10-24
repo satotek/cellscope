@@ -92,7 +92,8 @@ internal fun ChartPanel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: Long, onDismiss: () -> Unit,
-                initialMetric: String = "RSRP", live: Boolean = false, liveEdgeMs: Long = 0L) {
+                initialMetric: String = "RSRP", live: Boolean = false, liveEdgeMs: Long = 0L,
+                pinned: Boolean = false) {
     // On the newest sample the sheet follows the live history. Anything older is inspected on a
     // frozen copy: a live window would slide under the finger and could roll the sample out.
     // A tap near the right edge rarely lands on the very last sample; the caller sizes this tolerance
@@ -139,14 +140,20 @@ fun SampleSheet(samples: List<SignalSample>, events: List<CellEvent>, initialT: 
         }
     } else ModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        sheetGesturesEnabled = !scrubbing) {
-        // Sized to its content, so the chart behind stays in view; 92% is only the cap for a long
-        // neighbour list, which then scrolls on its own.
+        // A pinned sheet must not move under the finger. With short details there is nothing for
+        // the inner scroll to consume, so an enabled drag would collapse the sheet instead of
+        // scrolling the log; the scrim, back, or a tap on the handle still dismiss it.
+        sheetGesturesEnabled = !scrubbing && !pinned) {
+        // Replay pins the sheet at the top: scrubbing selects samples with different neighbour
+        // counts, and a content-sized sheet would move the chart under the finger as it resized.
+        // The live sheet stays sized to its content so the chart behind remains in view; 92% is
+        // only the cap there for a long neighbour list, which then scrolls on its own.
         val cap = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.92f).dp
-        Column(Modifier.fillMaxWidth().heightIn(max = cap).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+        val frame = if (pinned) Modifier.fillMaxHeight(0.92f) else Modifier.heightIn(max = cap)
+        Column(Modifier.fillMaxWidth().then(frame).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             chart(false)
             Spacer(Modifier.height(8.dp))
-            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            Column(Modifier.weight(1f, fill = pinned).verticalScroll(rememberScrollState())) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Metric("RSRP", fmt(smp.rsrp), "dBm", Palette.rsrp(smp.rsrp), big = true)
                 Metric("RSRQ", fmt(smp.rsrq), "dB", Palette.rsrq(smp.rsrq), big = true)
