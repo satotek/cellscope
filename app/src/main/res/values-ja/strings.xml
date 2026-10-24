@@ -191,8 +191,7 @@
     <string name="sim_metrics_on_dds">通信量と Ping はデータ SIM（%1$s）のものです。</string>
     <string name="sim_standby">待受だけの副 SIM は隣接セルを測らないことがあります。</string>
     <string name="more_backup">バックアップ</string>
-    <string name="backup_desc">ログ・スナップショット・設定を 1 つの .zip に書き出します。アンインストールすると端末側のデータは消えるので、これが唯一の控えです。</string>
-    <string name="backup_secrets">API キーは含まれません。</string>
+    <string name="backup_desc">ログ・スナップショット・訪問セルの台帳・設定を 1 つの .zip に書き出します。アンインストールすると端末側のデータは消えるので、これが唯一の控えです。</string>
     <string name="backup_export">すべて書き出す</string>
     <string name="backup_import">復元</string>
     <string name="backup_restore_settings">設定も復元する</string>

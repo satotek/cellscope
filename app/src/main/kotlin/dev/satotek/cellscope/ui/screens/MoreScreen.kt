@@ -386,7 +386,6 @@ private fun BackupPane(vm: MainViewModel?) {
         Panel {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.backup_desc), fontSize = 13.sp, color = Palette.textDim)
-                Text(stringResource(R.string.backup_secrets), fontSize = 12.sp, color = Palette.accent)
             }
         }
         Button(
