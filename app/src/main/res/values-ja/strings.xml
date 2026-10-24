@@ -223,7 +223,6 @@
     <string name="communication_scope">端末全体のモバイル通信量と、現在の接続のPingです。</string>
     <string name="speed_scope">モバイル回線を優先して、下り・上りを10秒ずつ測定します。</string>
     <string name="ca_title">キャリアアグリゲーション</string>
-    <string name="ca_no_config">構成情報なし</string>
     <string name="cell_pending_short">未取得</string>
     <string name="cell_age_unknown_short">時刻不明</string>
     <string name="dashboard_actions">その他の操作</string>
@@ -250,8 +249,6 @@
     <string name="dashboard_connecting">接続中…</string>
     <string name="dashboard_registered">登録済み</string>
     <string name="dashboard_unregistered">未登録</string>
-    <string name="dashboard_nr_available">NR利用可</string>
-    <string name="dashboard_nr_restricted">NR制限</string>
     <string name="dashboard_restricted">制限あり</string>
     <string name="dashboard_ims_transport">IMS経路</string>
     <string name="dashboard_nr_anchor">NRアンカー</string>

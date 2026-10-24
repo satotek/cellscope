@@ -87,14 +87,9 @@ fun OverviewScreen(
         if (s.sims.size >= 2) item(key = "sim_summaries") { SimSummaries(s, onSelectSub) }
         item(key = "serving") { ServingCard(serving, s) }
         val cc = s.root.physicalChannels
-        item(key = "ca") {
-            when {
-                cc.isNotEmpty() -> CarrierAggregationCard(cc, s.privilege)
-                s.secondaries.isNotEmpty() -> SecondaryCard(s.secondaries)
-                else -> Panel(title = stringResource(R.string.ca_title)) {
-                    Text(stringResource(R.string.ca_no_config), style = MaterialTheme.typography.bodySmall, color = Palette.textDim)
-                }
-            }
+        // With nothing to list, the "CA" field under network details already says enough.
+        if (cc.isNotEmpty() || s.secondaries.isNotEmpty()) item(key = "ca") {
+            if (cc.isNotEmpty()) CarrierAggregationCard(cc, s.privilege) else SecondaryCard(s.secondaries)
         }
         item(key = "network") { NetworkDetails(s) }
         item(key = "cells_link") {
@@ -180,7 +175,9 @@ private fun ServingCard(c: CellEntry?, s: Snapshot) {
             MeasurementValue("PCI", fmt(c.pci)),
             MeasurementValue(if (rat == Rat.NR) "NR-ARFCN" else if (rat == Rat.LTE) "EARFCN" else "ARFCN", fmt(c.arfcn)),
             MeasurementValue(stringResource(R.string.dashboard_frequency), fmtMhz(c.dlMhz), "MHz"),
-            MeasurementValue(stringResource(R.string.dashboard_bandwidth), fmtBw(c.bandwidthKhz ?: s.network.cellBandwidthsKhz.firstOrNull())),
+            (c.bandwidthKhz ?: s.network.cellBandwidthsKhz.firstOrNull()).let { bw ->
+                MeasurementValue(stringResource(R.string.dashboard_bandwidth), fmtBw(bw).removeSuffix(" MHz"), bw?.let { "MHz" })
+            },
         ))
         Spacer(Modifier.height(12.dp))
         MeasurementGrid(listOf(
@@ -233,17 +230,17 @@ private fun NetworkDetails(s: Snapshot) {
                 "CONNECTED" -> connected; "DISCONNECTED" -> disconnected
                 "CONNECTING" -> stringResource(R.string.dashboard_connecting); else -> n.dataState
             }),
-            MeasurementValue("IMS", n.imsRegistered?.let { if (it) stringResource(R.string.dashboard_registered) else stringResource(R.string.dashboard_unregistered) } ?: "—"),
-            MeasurementValue(stringResource(R.string.dashboard_ims_transport), n.imsTransport ?: "—"),
-            MeasurementValue("VoNR", enabled(n.voNrEnabled)),
             MeasurementValue("VoPS", available(n.vopsSupported)),
-            MeasurementValue(stringResource(R.string.dashboard_nr_available), available(n.isNrAvailable)),
-            MeasurementValue(stringResource(R.string.dashboard_nr_restricted), enabled(n.isDcNrRestricted)),
-            MeasurementValue(stringResource(R.string.dashboard_nr_anchor), n.nrAnchorPci?.toString() ?: "—"),
             // "15+15+15" over a shared unit stays on one line where "15 MHz + 15 MHz + …" took three.
             MeasurementValue(stringResource(R.string.dashboard_bandwidth),
                 n.cellBandwidthsKhz.takeIf { it.isNotEmpty() }?.joinToString("+") { fmtBw(it).removeSuffix(" MHz") } ?: "—",
                 unit = if (n.cellBandwidthsKhz.isNotEmpty()) "MHz" else null),
+        ) + listOfNotNull(
+            // Root and priv-app fill these; without them each would be a permanent "—".
+            n.imsRegistered?.let { MeasurementValue("IMS", stringResource(if (it) R.string.dashboard_registered else R.string.dashboard_unregistered)) },
+            n.imsTransport?.let { MeasurementValue(stringResource(R.string.dashboard_ims_transport), it) },
+            n.voNrEnabled?.let { MeasurementValue("VoNR", enabled(it)) },
+            n.nrAnchorPci?.let { MeasurementValue(stringResource(R.string.dashboard_nr_anchor), it.toString()) },
         ))
     }
 }

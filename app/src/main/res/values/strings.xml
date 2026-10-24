@@ -239,7 +239,6 @@
     <string name="communication_scope">All mobile traffic on this device, and ping over the current connection.</string>
     <string name="speed_scope">Measures download and upload for 10 s each, preferring cellular.</string>
     <string name="ca_title">Carrier aggregation</string>
-    <string name="ca_no_config">No configuration</string>
     <string name="cell_pending_short">Not received</string>
     <string name="cell_age_unknown_short">Time unknown</string>
     <string name="dashboard_actions">More actions</string>
@@ -266,8 +265,6 @@
     <string name="dashboard_connecting">Connecting</string>
     <string name="dashboard_registered">Registered</string>
     <string name="dashboard_unregistered">Unregistered</string>
-    <string name="dashboard_nr_available">NR available</string>
-    <string name="dashboard_nr_restricted">NR restricted</string>
     <string name="dashboard_restricted">Restricted</string>
     <string name="dashboard_ims_transport">IMS transport</string>
     <string name="dashboard_nr_anchor">NR anchor</string>
