@@ -53,10 +53,13 @@ class OverlayService : Service() {
         owner.attach()
         startAsForeground()
         if (!Settings.canDrawOverlays(this)) { stopSelf(); return }
+        (application as CellScopeApp).vm.ensureSampling()
         attachWindow()
+        running = true
     }
 
     override fun onDestroy() {
+        running = false
         detachWindow()
         owner.detach()
         super.onDestroy()
@@ -165,6 +168,9 @@ class OverlayService : Service() {
     companion object {
         private const val CHANNEL = "hud"
         private const val NOTIF = 7
+
+        /** The saved preference survives a killed process; this says whether the HUD is really up. */
+        @Volatile var running = false; private set
         fun start(ctx: Context) {
             if (!Settings.canDrawOverlays(ctx)) return
             ctx.startForegroundService(Intent(ctx, OverlayService::class.java))

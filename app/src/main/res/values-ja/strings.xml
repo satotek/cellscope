@@ -325,4 +325,8 @@
     <string name="update_notes_more">すべて表示</string>
     <string name="update_notes_less">折りたたむ</string>
     <string name="close">閉じる</string>
+    <string name="tile_hud">CellScope HUD</string>
+    <string name="tile_hud_needs_permission">許可が必要</string>
+    <string name="tile_rat_failed">変更できませんでした</string>
+    <string name="tile_rat_custom">カスタム</string>
 </resources>

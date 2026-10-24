@@ -426,6 +426,9 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         refreshRatLock(); refreshConnectivity()
     }
 
+    /** The HUD can start from a Quick Settings tile with no activity, which is what normally starts sampling. */
+    fun ensureSampling() { if (pollJob == null) onPermissionsResult() }
+
     fun setPollInterval(ms: Long) { _pollIntervalMs.value = ms.coerceIn(500L, 10_000L); settings.pollIntervalMs = _pollIntervalMs.value; startPolling() }
 
     private fun startPolling() {

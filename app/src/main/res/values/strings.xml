@@ -341,4 +341,8 @@
     <string name="update_notes_more">Show all</string>
     <string name="update_notes_less">Show less</string>
     <string name="close">Close</string>
+    <string name="tile_hud">CellScope HUD</string>
+    <string name="tile_hud_needs_permission">Needs permission</string>
+    <string name="tile_rat_failed">Could not change</string>
+    <string name="tile_rat_custom">Custom</string>
 </resources>

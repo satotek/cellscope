@@ -53,6 +53,27 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Persistent cell-signal HUD overlay" />
         </service>
+        <service
+            android:name=".tile.HudTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_hud"
+            android:label="@string/tile_hud"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+        </service>
+        <service
+            android:name=".tile.RatTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_rat"
+            android:label="@string/rat_lock"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".data.update.InstallResultReceiver"
             android:exported="false" />
