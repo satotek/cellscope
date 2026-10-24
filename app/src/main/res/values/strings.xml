@@ -105,7 +105,7 @@
     <string name="group_radio">Radio</string>
     <string name="rat_lock">Network type</string>
     <string name="rat_lock_p1">Restricts which RATs the modem may camp on (allowed network types, user slot). The modem re-registers immediately.</string>
-    <string name="rat_lock_p2">Band or cell locking is not possible on Tensor: Android has no API for it and Shannon lacks the DIAG path NSG uses on Qualcomm.</string>
+    <string name="rat_lock_p2">Band or cell locking is not possible here: Android has no API for it, and NSG reaches it through modem diagnostic interfaces this device does not expose.</string>
     <string name="rat_lock_needs_privapp">Requires priv-app mode</string>
     <string name="rat_auto">Auto</string>
     <string name="rat_nr_lte">5G+4G</string>

@@ -449,7 +449,7 @@ class MainViewModel(private val dependencies: AppDependencies) : ViewModel() {
         if (recorder.active) recorder.append(_state.value, sample)
     }
 
-    /** Fallback when TrafficStats reports nothing for mobile: sum the modem netdevs (Shannon = wwanN, others = rmnetN/ccmniN). */
+    /** Fallback when TrafficStats reports nothing for mobile: sum the modem netdevs (Tensor = wwanN, others = rmnetN/ccmniN). */
     private fun sysfsMobileBytes(): Pair<Long, Long> {
         var rx = 0L; var tx = 0L
         java.io.File("/sys/class/net").listFiles()?.filter { it.name.startsWith("wwan") || it.name.startsWith("rmnet") || it.name.startsWith("ccmni") }?.forEach { d ->
