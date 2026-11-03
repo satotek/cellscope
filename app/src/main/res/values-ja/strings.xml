@@ -93,7 +93,7 @@
     <string name="group_radio">無線</string>
     <string name="rat_lock">ネットワーク種別</string>
     <string name="rat_lock_p1">モデムが在圏できる RAT を制限します（allowed network types のユーザー枠）。変更は即時に反映され、モデムが再登録します。</string>
-    <string name="rat_lock_p2">バンドやセルの固定は Tensor ではできません。Android に API が無く、NSG が Qualcomm で使う DIAG 経路も Shannon にはありません。</string>
+    <string name="rat_lock_p2">バンドやセルの固定はできません。Android に API が無く、NSG が使うモデムの診断インターフェースにもこの端末からは届きません。</string>
     <string name="rat_lock_needs_privapp">priv-app モードが必要です</string>
     <string name="rat_auto">自動</string>
     <string name="rat_nr_lte">5G+4G</string>

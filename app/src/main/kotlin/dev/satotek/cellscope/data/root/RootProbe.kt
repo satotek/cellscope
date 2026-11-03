@@ -192,7 +192,7 @@ object RootProbe {
         else -> machine.removeSuffix("State")
     }
 
-    /** Modem / RIL identity props. Shannon (Tensor) exposes these under gsm.* and ro.vendor.*. */
+    /** Modem / RIL identity props. Tensor exposes these under gsm.* and ro.vendor.*. */
     suspend fun modemProps(): Map<String, String> {
         val r = RootShell.run("getprop | grep -E '^\\[(gsm\\.|ro\\.vendor\\.radio|ro\\.radio|vendor\\.radio|persist\\.radio|ro\\.baseband|ril\\.|vendor\\.ril|ro\\.boot\\.hardware|ro\\.soc)'", 10)
         return r.out.lines().mapNotNull { l ->

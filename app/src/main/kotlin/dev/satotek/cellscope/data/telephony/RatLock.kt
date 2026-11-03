@@ -17,7 +17,7 @@ import android.telephony.TelephonyManager.NETWORK_TYPE_BITMASK_UMTS
 
 /**
  * RAT lock via the "user" allowed-network-types slot. This is the only radio restriction Android exposes:
- * there is no API for band or cell locking (NSG does that through Qualcomm DIAG, which Shannon lacks).
+ * there is no API for band or cell locking (NSG does that through modem diagnostic interfaces such as Qualcomm DIAG, which are not reachable here).
  * Both get and set need MODIFY_PHONE_STATE / READ_PRIVILEGED_PHONE_STATE → priv-app mode only.
  */
 object RatLock {
